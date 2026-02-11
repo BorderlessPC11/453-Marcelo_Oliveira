@@ -398,7 +398,7 @@ export function InspectionDetail({ id }: InspectionDetailProps) {
       />
 
       {/* Actions */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Button
           variant="outline"
           className="h-12 gap-2 bg-transparent"
@@ -406,6 +406,16 @@ export function InspectionDetail({ id }: InspectionDetailProps) {
         >
           <Copy className="h-4 w-4" />
           <span className="text-sm">Duplicar</span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-12 gap-2 bg-transparent"
+          asChild
+        >
+          <Link href={`/vistorias/${id}/documento`}>
+            <FileText className="h-4 w-4" />
+            <span className="text-sm">Documento</span>
+          </Link>
         </Button>
         <Button
           variant="outline"
