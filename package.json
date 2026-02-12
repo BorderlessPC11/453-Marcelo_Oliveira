@@ -6,7 +6,8 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "init:template": "ts-node scripts/init-template.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -42,11 +43,14 @@
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
     "date-fns": "^3.6.0",
+    "docxtemplater": "^3.67.6",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
+    "jspdf": "^4.1.0",
     "lucide-react": "^0.544.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
+    "pizzip": "^3.2.0",
     "react": "18.2.0",
     "react-day-picker": "8.10.1",
     "react-dom": "18.2.0",
