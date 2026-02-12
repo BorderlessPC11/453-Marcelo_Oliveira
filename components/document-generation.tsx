@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { getInspection } from "@/lib/store"
-import { gerarDocumento, fazerDownloadDocumento, obterDescritvoTemplate } from "@/lib/docx-generator"
+import { gerarDocumento, gerarPdf, fazerDownloadDocumento, obterDescritvoTemplate } from "@/lib/docx-generator"
 import type { Inspection } from "@/lib/types"
 
 interface DocumentGenerationProps {
@@ -91,6 +91,42 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
       toast.success("Documento aberto em nova aba!")
     } catch (erro) {
       console.error("Erro ao visualizar documento:", erro)
+      const mensagem = erro instanceof Error ? erro.message : "Erro desconhecido"
+      toast.error(`Erro: ${mensagem}`)
+    } finally {
+      setGerando(false)
+    }
+  }
+
+  /**
+   * Função para exportar em PDF
+   * Passos:
+   * 1. Validar que inspeção existe
+   * 2. Gerar o PDF usando jsPDF
+   * 3. Se sucesso: downloaded com nome dinâmico
+   * 4. Feedback ao usuário
+   */
+  const handleExportarPdf = async () => {
+    if (!inspection) {
+      toast.error("Vistoria não encontrada")
+      return
+    }
+
+    setGerando(true)
+    try {
+      // Gerar o PDF
+      const pdfBlob = await gerarPdf(inspection)
+
+      // Criar nome do arquivo
+      const dataFormatada = inspection.dataVistoria.split("-").reverse().join("-")
+      const nomeArquivo = `Vistoria_${inspection.titulo}_${dataFormatada}.pdf`
+
+      // Fazer download
+      fazerDownloadDocumento(pdfBlob, nomeArquivo)
+
+      toast.success("PDF exportado com sucesso!")
+    } catch (erro) {
+      console.error("Erro ao exportar PDF:", erro)
       const mensagem = erro instanceof Error ? erro.message : "Erro desconhecido"
       toast.error(`Erro: ${mensagem}`)
     } finally {
@@ -181,7 +217,7 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
           </div>
 
           {/* Botões de ação */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <Button
               type="button"
               variant="outline"
@@ -194,7 +230,22 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
               ) : (
                 <Eye className="mr-2 h-4 w-4" />
               )}
-              Visualizar
+              Ver
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 bg-transparent"
+              onClick={handleExportarPdf}
+              disabled={gerando}
+              title="Exportar como PDF (jsPDF)"
+            >
+              {gerando ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="mr-2 h-4 w-4" />
+              )}
+              PDF
             </Button>
             <Button
               type="button"
@@ -207,7 +258,7 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              Exportar
+              DOCX
             </Button>
           </div>
 

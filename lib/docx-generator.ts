@@ -188,19 +188,153 @@ export function fazerDownloadDocumento(blob: Blob, nomeArquivo: string): void {
 }
 
 /**
- * Converte DOCX para PDF usando jsPDF
- * 
- * Nota: conversão DOCX→PDF é complexa. Solução recomendada:
- * 1. Client: Usar jsPDF mas precisa converter manualmente para imagem
- * 2. Server: Usar libreoffice comandos ou API externa
- * 3. Alternativa: Gerar PDF diretamente sem DOCX intermediário
+ * Gera PDF diretamente com os dados da inspeção
+ * Estratégia: Client-side generation com jsPDF (mais rápido e offline)
  */
-export async function convertDocxParaPdf(_docxBlob: Blob): Promise<Blob> {
-  // Por enquanto, apenas retorna aviso
-  throw new Error(
-    "Conversão DOCX→PDF ainda não implementada. " +
-    "Use jsPDF para gerar PDF diretamente ou implemente servidor de conversão."
-  )
+export async function gerarPdf(inspection: Inspection): Promise<Blob> {
+  try {
+    const erros = validarDados(inspection)
+    if (erros.length > 0) throw new Error(`Dados inválidos: ${erros.join(", ")}`)
+
+    // Importação dinâmica do jsPDF para reduzir bundle size se não usado
+    const { jsPDF } = await import("jspdf")
+    const doc = new jsPDF()
+
+    // Configuração inicial
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    let yPosition = 15
+    const margemEsquerda = 15
+    const margemDireita = 15
+    const larguraTexto = pageWidth - margemEsquerda - margemDireita
+
+    // Função auxiliar para adicionar linha com quebra de página automática
+    const adicionarTexto = (
+      texto: string,
+      tamanho: number = 10,
+      isBold: boolean = false,
+      espacoAntes: number = 0
+    ) => {
+      doc.setFontSize(tamanho)
+      doc.setFont("helvetica", isBold ? "bold" : "normal")
+
+      const linhas = doc.splitTextToSize(texto, larguraTexto)
+      const alturaLinhas = (linhas.length * tamanho) / 2.5
+
+      yPosition += espacoAntes
+
+      // Verifica se precisa adicionar nova página
+      if (yPosition + alturaLinhas > pageHeight - 10) {
+        doc.addPage()
+        yPosition = 15
+      }
+
+      doc.text(linhas, margemEsquerda, yPosition)
+      yPosition += alturaLinhas + 3
+    }
+
+    // Cabeçalho
+    adicionarTexto("RELATÓRIO DE VISTORIA NR-15", 16, true, 0)
+    adicionarTexto(inspection.titulo, 12, true, 2)
+
+    // Seção de Informações Gerais
+    adicionarTexto("INFORMAÇÕES GERAIS", 11, true, 8)
+    adicionarTexto(`Tipo: ${inspection.tipo}`, 10, false, 2)
+    adicionarTexto(`Endereço: ${inspection.endereco}`, 10, false, 2)
+    adicionarTexto(`Data da Vistoria: ${formatarData(inspection.dataVistoria)}`, 10, false, 2)
+    adicionarTexto(`Responsável: ${inspection.responsavel || "N/A"}`, 10, false, 2)
+    adicionarTexto(`Status: ${inspection.status || "rascunho"}`, 10, false, 2)
+
+    // Seção de Participantes
+    if (inspection.participantes && inspection.participantes.length > 0) {
+      adicionarTexto("PARTICIPANTES", 11, true, 6)
+      inspection.participantes.forEach((participante) => {
+        adicionarTexto(
+          `• ${participante.nome} (${participante.cargo || "Sem cargo"})`,
+          10,
+          false,
+          1
+        )
+      })
+    }
+
+    // Seção de Avaliações NR-15
+    const avaliacoes = inspection.avaliacoesNR15
+    if (avaliacoes && avaliacoes.length > 0) {
+      adicionarTexto("AVALIAÇÕES NR-15", 11, true, 6)
+      avaliacoes.forEach((avaliacao, index) => {
+        adicionarTexto(`Anexo NR-15 Nº ${avaliacao.anexoNumero}`, 10, true, 2)
+        adicionarTexto(`Aplica: ${avaliacao.aplica ? "Sim" : avaliacao.aplica === false ? "Não" : "Não avaliado"}`, 10, false, 1)
+        
+        if (avaliacao.localAvaliacao) {
+          adicionarTexto(`Local: ${avaliacao.localAvaliacao}`, 10, false, 1)
+        }
+        
+        if (avaliacao.atividadesDescritas) {
+          adicionarTexto(`Atividades: ${avaliacao.atividadesDescritas}`, 10, false, 1)
+        }
+
+        if (avaliacao.agentesAvaliados && avaliacao.agentesAvaliados.length > 0) {
+          adicionarTexto("Agentes Avaliados:", 10, true, 2)
+          avaliacao.agentesAvaliados.forEach((agente) => {
+            adicionarTexto(
+              `  • Identificado: ${agente.identificado ? "Sim" : "Não"} | Acima do limite: ${agente.acimaDoLimite ? "Sim" : agente.acimaDoLimite === false ? "Não" : "N/A"}`,
+              10,
+              false,
+              1
+            )
+            if (agente.valorMedido) {
+              adicionarTexto(`    Valor Medido: ${agente.valorMedido}`, 10, false, 1)
+            }
+          })
+        }
+
+        if (avaliacao.conclusao) {
+          adicionarTexto(`Conclusão: ${avaliacao.conclusao}`, 10, false, 1)
+        }
+
+        if (avaliacao.observacoes) {
+          adicionarTexto(`Observações: ${avaliacao.observacoes}`, 10, false, 1)
+        }
+
+        if (index < avaliacoes.length - 1) {
+          adicionarTexto("", 10, false, 2)
+        }
+      })
+    }
+
+    // Seção de NR-15 Observações
+    if (inspection.nr15Observacoes && inspection.nr15Observacoes.trim()) {
+      adicionarTexto("OBSERVAÇÕES NR-15", 11, true, 6)
+      adicionarTexto(inspection.nr15Observacoes, 10, false, 2)
+    }
+
+    // Seção de Observações Gerais
+    if (inspection.observacoes && inspection.observacoes.trim()) {
+      adicionarTexto("OBSERVAÇÕES GERAIS", 11, true, 6)
+      adicionarTexto(inspection.observacoes, 10, false, 2)
+    }
+
+    // Rodapé
+    adicionarTexto("", 10, false, 8)
+    doc.setFontSize(8)
+    doc.setFont("helvetica", "italic")
+    doc.text(
+      `Gerado em ${formatarData(new Date().toISOString())}`,
+      margemEsquerda,
+      pageHeight - 8
+    )
+
+    // Retorna como Blob
+    return new Promise((resolve) => {
+      const blob = doc.output("blob") as Blob
+      resolve(blob)
+    })
+  } catch (erro) {
+    throw new Error(
+      erro instanceof Error ? erro.message : "Erro ao gerar PDF"
+    )
+  }
 }
 
 /**
