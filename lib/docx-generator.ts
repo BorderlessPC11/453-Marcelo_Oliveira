@@ -142,128 +142,504 @@ function formatarParticipantes(inspection: Inspection): string {
 }
 
 /**
- * Valida se os dados da inspeção estão preenchidos minimamente
- * Retorna array com erros encontrados
+ * Valida um anexo NR-15 específico quando está marcado como aplicável
+ * 
+ * Se um anexo tem aplica=true, seus campos de dados tornam-se obrigatórios:
+ * - localAvaliacao: onde foi realizada a avaliação
+ * - atividadesDescritas: quais atividades foram observadas
+ * - epicUtilizados: EPIs encontrados
+ * - agentesAvaliados: pelo menos um agente deve estar marcado como identificado
+ * 
+ * @param avaliacao Os dados da avaliação do anexo
+ * @param numeroAnexo Número do anexo NR-15 para mensagens de erro
+ * @returns Array com erros encontrados
  */
-function validarDados(inspection: Inspection): string[] {
+function validarAnexoNR15(avaliacao: any, numeroAnexo: number): string[] {
   const erros: string[] = []
 
-  if (!inspection.titulo?.trim()) erros.push("Título da vistoria não preenchido")
-  if (!inspection.endereco?.trim()) erros.push("Endereço não preenchido")
-  if (!inspection.responsavel?.trim()) erros.push("Responsável não preenchido")
-  if (!inspection.dataVistoria) erros.push("Data da vistoria não preenchida")
+  // Se o anexo NÃO foi avaliado, não há validação necessária
+  if (avaliacao.aplica === null || avaliacao.aplica === false) {
+    return erros
+  }
+
+  // Se aplicável (aplica === true), validar campos obrigatórios
+  // Campo 1: Descrição do local onde foi feita a avaliação
+  if (!avaliacao.localAvaliacao?.trim()) {
+    erros.push(`[Anexo ${numeroAnexo}] Local da avaliação não preenchido`)
+  }
+
+  // Campo 2: Descrever quais atividades foram observadas
+  if (!avaliacao.atividadesDescritas?.trim()) {
+    erros.push(`[Anexo ${numeroAnexo}] Atividades descritas não preenchidas`)
+  }
+
+  // Campo 3: EPIs identificados no local
+  if (!avaliacao.episUtilizados?.trim()) {
+    erros.push(`[Anexo ${numeroAnexo}] EPIs utilizados não preenchidos`)
+  }
+
+  // Campo 4: Pelo menos um agente deve estar avaliado
+  const agentesIdentificados = avaliacao.agentesAvaliados?.filter((a: any) => a.identificado === true) || []
+  if (agentesIdentificados.length === 0) {
+    erros.push(`[Anexo ${numeroAnexo}] Nenhum agente foi marcado como identificado`)
+  }
+
+  // Campo 5 (obrigatório se houver agentes identificados): Conclusão
+  if (agentesIdentificados.length > 0 && !avaliacao.conclusao?.trim()) {
+    erros.push(`[Anexo ${numeroAnexo}] Conclusão sobre os agentes identificados não preenchida`)
+  }
 
   return erros
 }
 
 /**
+ * Valida se todos os anexos NR-15 marcados como "APLICA" têm dados completos
+ * 
+ * Esta é uma validação de negócio importante: nós não permitimos gerar
+ * um documento se um anexo foi avaliado (aplica=true) mas não tem dados completos
+ * 
+ * @param inspection A vistoria com as avaliações NR-15
+ * @returns Array com todos os erros encontrados em todos os anexos
+ */
+function validarTodosAnexosAplicaveis(inspection: Inspection): string[] {
+  const erros: string[] = []
+
+  // Se não houver avaliações NR-15, não há o que validar
+  if (!inspection.avaliacoesNR15 || inspection.avaliacoesNR15.length === 0) {
+    return erros
+  }
+
+  // Verificar cada anexo avaliado
+  inspection.avaliacoesNR15.forEach((avaliacao) => {
+    // Para cada anexo, validar seus campos se estiver marcado como aplicável
+    const errosAnexo = validarAnexoNR15(avaliacao, avaliacao.anexoNumero)
+    erros.push(...errosAnexo)
+  })
+
+  return erros
+}
+
+/**
+ * Valida se os dados da inspeção estão preenchidos minimamente
+ * Retorna array com erros encontrados
+ * 
+ * VALIDAÇÕES CRÍTICAS:
+ * 1. Dados básicos obrigatórios (títhulo, endereço, responsável, data)
+ * 2. Pelo menos um participante deve estar registrado
+ * 3. Todos os anexos NR-15 "aplicáveis" devem ter dados completos
+ * 4. Se houver fotos, todas devem ter legendas
+ * 
+ * Esta é a função de "guarda" antes de gerar o documento.
+ * Se retornar erros, o documento não deve ser gerado.
+ */
+function validarDados(inspection: Inspection): string[] {
+  const erros: string[] = []
+
+  // VALIDAÇÃO 1: Dados básicos obrigatórios
+  if (!inspection.titulo?.trim()) {
+    erros.push("❌ Título da vistoria não preenchido")
+  }
+  if (!inspection.endereco?.trim()) {
+    erros.push("❌ Endereço não preenchido")
+  }
+  if (!inspection.responsavel?.trim()) {
+    erros.push("❌ Responsável não preenchido")
+  }
+  if (!inspection.dataVistoria) {
+    erros.push("❌ Data da vistoria não preenchida")
+  }
+
+  // VALIDAÇÃO 2: Deve haver pelo menos um participante
+  if (!inspection.participantes || inspection.participantes.length === 0) {
+    erros.push("❌ Nenhum participante registrado. Adicione pelo menos um participante")
+  }
+
+  // VALIDAÇÃO 3: Se houver participantes, verificar quem já assinou e quem falta
+  if (inspection.participantes && inspection.participantes.length > 0) {
+    const semAssinadura = inspection.participantes.filter((p) => !p.assinatura).length
+    if (semAssinadura > 0) {
+      // Esta é um AVISO, não erro crítico
+      // Mas registramos para mostrar ao usuário
+      erros.push(`⚠️ ${semAssinadura} participante(s) ainda não assinaram o documento`)
+    }
+  }
+
+  // VALIDAÇÃO 4: Validar campos NR-15 obrigatórios
+  // Isto valida TODOS os anexos marcados como aplicáveis
+  const errosNR15 = validarTodosAnexosAplicaveis(inspection)
+  if (errosNR15.length > 0) {
+    erros.push(...errosNR15)
+  }
+
+  // VALIDAÇÃO 5: Se houver fotos, verificar legendas
+  if (inspection.fotos && inspection.fotos.length > 0) {
+    const fotosSemusLegenda = inspection.fotos.filter((f) => !f.legenda?.trim())
+    if (fotosSemusLegenda.length > 0) {
+      erros.push(`⚠️ ${fotosSemusLegenda.length} foto(s) não têm legenda`)
+    }
+  }
+
+  return erros
+}
+
+/**
+ * Verifica a integridade do template DOCX
+ * 
+ * Valida que:
+ * 1. O arquivo existe em /public/templates/vistoria-template.docx
+ * 2. O arquivo é um ZIP válido (DOCX = ZIP)
+ * 3. Contém a estrutura básica de um DOCX (pasta word/, document.xml, etc)
+ * 4. Contém placeholders esperados no documento
+ * 
+ * Esta função vai ajudar a debugar problemas com o template
+ * 
+ * @returns Promise com resultado da validação
+ */
+export async function verificarTemplateIntegridade(): Promise<{
+  isValid: boolean
+  mensagem: string
+  detalhes: string[]
+}> {
+  const detalhes: string[] = []
+  let isValid = true
+
+  try {
+    // PASSO 1: Verificar se arquivo existe
+    detalhes.push("1️⃣ Verificando se template existe em /public/templates/vistoria-template.docx")
+    const resposta = await fetch("/templates/vistoria-template.docx")
+
+    if (!resposta.ok) {
+      detalhes.push(`   ❌ Arquivo não encontrado (HTTP ${resposta.status})`)
+      return {
+        isValid: false,
+        mensagem: "Template não encontrado",
+        detalhes,
+      }
+    }
+    detalhes.push("   ✅ Arquivo existe e é acessível")
+
+    // PASSO 2: Tentar converter para ZIP
+    detalhes.push("2️⃣ Tentando descompactar como ZIP (DOCX é um arquivo ZIP)")
+    const arrayBuffer = await resposta.arrayBuffer()
+
+    try {
+      const zip = new PizZip(arrayBuffer)
+      detalhes.push("   ✅ Arquivo é um ZIP válido")
+
+      // PASSO 3: Verficar estrutura interna
+      detalhes.push("3️⃣ Verificando estrutura interna do DOCX")
+
+      // Um DOCX válido deve ter word/document.xml
+      const documentXml = zip.file("word/document.xml")
+      if (!documentXml) {
+        detalhes.push("   ⚠️ Arquivo não contém word/document.xml (pode estar corrompido)")
+        isValid = false
+      } else {
+        detalhes.push("   ✅ Contém word/document.xml")
+
+        // PASSO 4: Procurar por placeholders esperados
+        detalhes.push("4️⃣ Procurando por placeholders esperados")
+        const xmlContent = documentXml.asText()
+
+        const placeholdersEsperados = [
+          "titulo",
+          "endereco",
+          "responsavel",
+          "dataVistoria",
+          "participantes",
+        ]
+
+        const placeholdersEncontrados: string[] = []
+        const placeholdersFaltando: string[] = []
+
+        placeholdersEsperados.forEach((ph) => {
+          // Procura por {nome} no documento
+          if (xmlContent.includes(`{${ph}}`) || xmlContent.includes(`${ph}`)) {
+            placeholdersEncontrados.push(ph)
+          } else {
+            placeholdersFaltando.push(ph)
+          }
+        })
+
+        if (placeholdersEncontrados.length > 0) {
+          detalhes.push(`   ✅ Placeholders encontrados: ${placeholdersEncontrados.join(", ")}`)
+        }
+
+        if (placeholdersFaltando.length > 0) {
+          detalhes.push(`   ⚠️ Placeholders faltando: ${placeholdersFaltando.join(", ")}`)
+          isValid = false
+        }
+      }
+
+      // PASSO 5: Verificar pasta media (para imagens)
+      detalhes.push("5️⃣ Verificando pasta media/ (para imagens e assinaturas)")
+      const mediaFolder = zip.folder("word/media")
+      if (mediaFolder) {
+        detalhes.push("   ✅ Pasta word/media/ existe (pronta para receber imagens)")
+      } else {
+        detalhes.push("   ℹ️ Pasta word/media/ não existe (será criada automaticamente)")
+      }
+    } catch (erro) {
+      detalhes.push(`   ❌ Erro ao descompactar: ${erro instanceof Error ? erro.message : "Desconhecido"}`)
+      return {
+        isValid: false,
+        mensagem: "Erro ao validar template (arquivo corrompido?)",
+        detalhes,
+      }
+    }
+  } catch (erro) {
+    detalhes.push(`❌ Erro geral: ${erro instanceof Error ? erro.message : "Desconhecido"}`)
+    return {
+      isValid: false,
+      mensagem: "Erro ao validar template",
+      detalhes,
+    }
+  }
+
+  const mensagem = isValid
+    ? "✅ Template válido e pronto para usar"
+    : "⚠️ Template possui problemas. Veja detalhes acima"
+
+  return {
+    isValid,
+    mensagem,
+    detalhes,
+  }
+}
+
+/**
+ * Formata erros de validação de forma legível para o usuário
+ * 
+ * Mostra cada erro em uma linha com ícone apropriado
+ * Erros críticos (❌) bloqueiam geração
+ * Avisos (⚠️) permitem mas alertam o usuário
+ * 
+ * @param erros Array de mensagens de erro
+ * @returns String formatada para mostrar ao usuário
+ */
+function formatarErrosValidacao(erros: string[]): string {
+  if (erros.length === 0) {
+    return "✅ Todos os dados estão corretos"
+  }
+
+  // Separar erros críticos de avisos
+  const errosCriticos = erros.filter((e) => e.startsWith("❌"))
+  const avisos = erros.filter((e) => e.startsWith("⚠️"))
+  const informativos = erros.filter((e) => e.startsWith("ℹ️"))
+
+  let mensagem = ""
+
+  if (errosCriticos.length > 0) {
+    mensagem += "🔴 ERROS BLOQUEADORES:\n"
+    mensagem += errosCriticos.map((e) => `  ${e}`).join("\n")
+    mensagem += "\n\nO documento NÃO pode ser gerado até resolver esses erros.\n"
+  }
+
+  if (avisos.length > 0) {
+    mensagem += "\n⚠️ ATENÇÃO:\n"
+    mensagem += avisos.map((e) => `  ${e}`).join("\n")
+    mensagem += "\n\nO documento pode ser gerado, mas revise essas informações.\n"
+  }
+
+  if (informativos.length > 0) {
+    mensagem += "\n📌 INFORMAÇÕES:\n"
+    mensagem += informativos.map((e) => `  ${e}`).join("\n")
+  }
+
+  return mensagem
+}
+/**
  * Gera um documento DOCX a partir de uma inspeção
  * 
- * Fluxo:
- * 1. Valida dados
- * 2. Busca template do servidor
- * 3. Descompacta template (DOCX é ZIP)
- * 4. Substitui placeholders pelos dados
- * 5. Recompacta como novo DOCX
- * 6. Retorna como Blob para download
+ * FLUXO COMPLETO:
+ * 1. ✅ Validação crítica de dados essenciais (título, endereço, etc)
+ * 2. ✅ Validação de participantes (pelo menos 1 obrigatório)
+ * 3. ✅ Validação de anexos NR-15 (se aplica=true, dados completos)
+ * 4. 🔄 Busca template DOCX do servidor
+ * 5. 🔄 Descompacta template (DOCX é um arquivo ZIP)
+ * 6. 🔄 Prepara dados com substituição de valores especiais
+ * 7. 🔄 Substitui placeholders {chave} pelos valores reais
+ * 8. 🔄 Renderiza document (aplica transformações do docxtemplater)
+ * 9. 🔄 Recompacta como novo DOCX binário
+ * 10. 📥 Retorna como Blob para download no navegador
  * 
- * @param inspection Dados da inspeção para preencher
- * @returns Promise com Blob do DOCX gerado
- * @throws Error se dados inválidos ou template não encontrado
+ * VALIDAÇÕES BLOQUEADORAS (retornam erro):
+ * - Dados básicos faltando (títular, endereço, responsável, data)
+ * - Sem participantes registrados
+ * - Anexos NR-15 marcados como "APLICA" mas sem dados completos
+ * 
+ * AVISOS (alertam mas permitem continuar):
+ * - Participantes sem assinatura
+ * - Fotos sem legenda
+ * 
+ * @param inspection Dados da vistoria para preencher no template
+ * @returns Promise<Blob> Arquivo DOCX pronto para download
+ * @throws Error com mensagem descritiva se houver problemas
  */
 export async function gerarDocumento(inspection: Inspection): Promise<Blob> {
-  // VALIDAÇÃO: Verificar se dados essenciais estão preenchidos
+  // ╔═══════════════════════════════════════════════════════════════════════════╗
+  // ║ ETAPA 1: VALIDAÇÃO CRÍTICA                                               ║
+  // ╚═══════════════════════════════════════════════════════════════════════════╝
+  
   const erros = validarDados(inspection)
-  if (erros.length > 0) {
-    throw new Error(`Dados incompletos:\n${erros.join("\n")}`)
+  
+  // Separar erros críticos de avisos
+  const errosCriticos = erros.filter((e) => e.startsWith("❌"))
+  
+  // Se houver ERROS CRÍTICOS, não permitir geração
+  if (errosCriticos.length > 0) {
+    const mensagem = formatarErrosValidacao(erros)
+    throw new Error(`Não é possível gerar o documento:\n\n${mensagem}`)
   }
 
   try {
-    // PASSO 1: Buscar o template DOCX do servidor
-    // O template está em /public/templates/vistoria-template.docx
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║ ETAPA 2: BUSCAR TEMPLATE DO SERVIDOR                                     ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
+    
+    // Fazer requisição HTTP para download do template
+    // O arquivo está em /public/templates/vistoria-template.docx
     const resposta = await fetch("/templates/vistoria-template.docx")
     
+    // Se resposta não for OK (200-299), significa arquivo não encontrado
     if (!resposta.ok) {
       throw new Error(
-        `Template não encontrado (${resposta.status}). ` +
-        `Certifique-se que o arquivo existe em /public/templates/vistoria-template.docx`
+        `Template não encontrado (HTTP ${resposta.status}). ` +
+        `Verifique se o arquivo existe em /public/templates/vistoria-template.docx. ` +
+        `Use obterDescritvoTemplate() para ver como criar o template.`
       )
     }
 
-    // PASSO 2: Converter a resposta para Array Buffer
-    // Array Buffer = dados binários brutos do arquivo DOCX
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║ ETAPA 3: DESCOMPACTAR TEMPLATE (DOCX = ZIP)                              ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
+    
+    // Converter resposta HTTP em ArrayBuffer (dados binários brutos)
     const arrayBuffer = await resposta.arrayBuffer()
 
-    // PASSO 3: PizZip descompacta o DOCX (que é um arquivo ZIP)
-    // DOCX = ZIP compactado com XML dentro
+    // PizZip descompacta o arquivo DOCX
+    // Um DOCX é um arquivo ZIP que contém:
+    // - word/document.xml (conteúdo principal)
+    // - word/styles.xml (estilos)
+    // - [Content_Types].xml (metadados)
+    // - word/media/ (pasta para imagens/assinaturas)
+    // - etc.
     const zip = new PizZip(arrayBuffer)
 
-    // PASSO 4: Docxtemplater lê a estrutura do ZIP descompactado
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║ ETAPA 4: PREPARAR DADOS PARA SUBSTITUIÇÃO                                ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
+    
+    // Docxtemplater procura por {nomeChave} no documento
+    // e substitui pelos valores mapeados aqui
+    const dados = {
+      // ├─ INFORMAÇÕES BÁSICAS
+      titulo: inspection.titulo,                           // {titulo}
+      tipo: inspection.tipo,                               // {tipo}
+      endereco: inspection.endereco,                       // {endereco}
+      responsavel: inspection.responsavel,                 // {responsavel}
+      dataVistoria: formatarData(inspection.dataVistoria), // {dataVistoria} - formato BR (DD/MM/YYYY)
+      dataGeracao: formatarData(new Date().toISOString()), // {dataGeracao} - quando documento foi criado
+      observacoes: inspection.observacoes || "Nenhuma observação", // {observacoes}
+
+      // ├─ PARTICIPANTES
+      // {participantes} será uma string com cada participante em uma linha
+      // Formato: "João Silva (Engenheiro) - ABC Ltda"
+      participantes: formatarParticipantes(inspection),
+      totalParticipantes: inspection.participantes?.length || 0, // {totalParticipantes}
+
+      // ├─ ESTATÍSTICAS DE ASSINATURAS
+      totalAssinaturas: obterEstatisticasAssinaturas(inspection).comAssinatura,
+      assinaturasAusentes: obterEstatisticasAssinaturas(inspection).semAssinatura,
+
+      // ├─ NR-15 (Segurança e Saúde do Trabalho)
+      setoresAvaliados: inspection.setoresAvaliados || "Não preenchido",        // {setoresAvaliados}
+      descricaoAtividades: inspection.descricaoAtividades || "Não preenchido", // {descricaoAtividades}
+      epcsIdentificados: inspection.epcsIdentificados || "Não preenchido",     // {epcsIdentificados}
+      nr15Observacoes: inspection.nr15Observacoes || "Sem observações",         // {nr15Observacoes}
+
+      // ├─ STATUS DA VISTORIA
+      // Transformar status técnico (rascunho/em_andamento/concluida) em texto legível
+      status: inspection.status === "concluida" ? "CONCLUÍDA" : "EM ANDAMENTO", // {status}
+      statusTexto:
+        inspection.status === "concluida"
+          ? "Vistoria concluída - Pronta para entrega"
+          : "Vistoria em andamento - Dados não consolidados", // {statusTexto}
+
+      // ├─ ESTATÍSTICAS DE FOTOS
+      totalFotos: inspection.fotos?.length || 0, // {totalFotos}
+      fotosComLegenda: inspection.fotos?.filter((f) => f.legenda?.trim()).length || 0,
+
+      // ├─ DADOS DE AVALIAÇÃO NR-15 (para loops no template)
+      // Se o template usar {#avaliacoes}{/avaliacoes}, cada avaliação será renderizada
+      avaliacoes: inspection.avaliacoesNR15?.map((av) => ({
+        anexoNumero: av.anexoNumero,
+        aplica: av.aplica ? "Sim" : av.aplica === false ? "Não" : "Não avaliado",
+        localAvaliacao: av.localAvaliacao || "-",
+        atividadesDescritas: av.atividadesDescritas || "-",
+        episUtilizados: av.episUtilizados || "-",
+        agentesIdentificados: av.agentesAvaliados?.filter((a) => a.identificado).length || 0,
+        conclusao: av.conclusao || "-",
+        observacoes: av.observacoes || "-",
+      })) || [],
+    }
+
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║ ETAPA 5: CRIAR INSTÂNCIA DE DOCXTEMPLATER E CARREGAR DADOS                ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
+    
+    // Docxtemplater parser o XML do document.xml
+    // paragraphLoop=true: permite usar loops de parágrafos
+    // linebreaks=true: converte \n em quebras de linha no DOCX
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
     })
 
-    // PASSO 5: Preparar dados para substituição
-    // Mapeamento de placeholders {nome} → valores reais
-    const dados = {
-      // Dados básicos da vistoria
-      titulo: inspection.titulo,
-      tipo: inspection.tipo,
-      endereco: inspection.endereco,
-      responsavel: inspection.responsavel,
-      dataVistoria: formatarData(inspection.dataVistoria),
-      dataGeracao: formatarData(new Date().toISOString()),
-      observacoes: inspection.observacoes || "Nenhuma observação",
-
-      // Participantes
-      participantes: formatarParticipantes(inspection),
-      totalParticipantes: inspection.participantes?.length || 0,
-
-      // NR-15
-      setoresAvaliados: inspection.setoresAvaliados || "Não preenchido",
-      descricaoAtividades: inspection.descricaoAtividades || "Não preenchido",
-      epcsIdentificados: inspection.epcsIdentificados || "Não preenchido",
-      nr15Observacoes: inspection.nr15Observacoes || "Sem observações",
-
-      // Status
-      status: inspection.status === "concluida" ? "CONCLUÍDA" : "EM ANDAMENTO",
-      statusTexto:
-        inspection.status === "concluida"
-          ? "Vistoria concluída"
-          : "Vistoria em andamento",
-    }
-
-    // PASSO 6: Substituir placeholders pelos dados reais
-    // docxtemplater procura por {chave} e substitui pelo valor
+    // Alimentar o docxtemplater com os dados de substituição
     doc.setData(dados)
 
-    // PASSO 7: Renderizar o documento com os dados substituídos
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║ ETAPA 6: RENDERIZAR O DOCUMENTO                                          ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
+    
+    // Renderizar = aplicar as transformações no XML
+    // Substitui {chave} por valores, processa loops, etc.
     try {
       doc.render()
     } catch (erro) {
+      // Se houver erro, é provável que um placeholder não tenha correspondência
       console.error("Erro ao renderizar documento:", erro)
       throw new Error(
-        `Erro ao gerar documento. Verifique se o template está correto e ` +
-        `os placeholders correspondem aos dados: ${(erro as Error).message}`
+        `Erro ao gerar documento: ${(erro as Error).message}\n\n` +
+        `Verifique se todos os placeholders do template existem nos dados. ` +
+        `Use obterDescritvoTemplate() para ver os placeholders necessários.`
       )
     }
 
-    // PASSO 8: Gerar o novo DOCX compilado como ZIP
-    // Retorna os dados binários do arquivo DOCX gerado
-    const docGerido = doc.getZip().generate({
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║ ETAPA 7: COMPILAR E RETORNAR COMO BLOB                                    ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
+    
+    // Recompactar o ZIP com o conteúdo modificado
+    // Retorna como Blob (arquivo em memória) com MIME type correto
+    const docGerado = doc.getZip().generate({
       type: "blob",
+      // MIME type oficial para documentos Word (.docx)
       mimeType:
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     })
 
-    return docGerido
+    return docGerado
   } catch (erro) {
-    // Tratamento de erro com contexto
+    // Se chegou aqui, é um erro técnico (não de validação)
     if (erro instanceof Error) {
       throw erro
     }
-    throw new Error(`Erro desconhecido ao gerar documento: ${erro}`)
+    throw new Error(
+      `Erro desconhecido ao gerar documento: ${erro}\n\n` +
+      `Por favor, tente novamente. Se o erro persistir, contate o suporte.`
+    )
   }
 }
 

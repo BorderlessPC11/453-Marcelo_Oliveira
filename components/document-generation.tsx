@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { FileText, Eye, Download, Info, Loader2 } from "lucide-react"
+import { FileText, Eye, Download, Info, Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getInspection } from "@/lib/store"
-import { gerarDocumento, gerarPdf, fazerDownloadDocumento, obterDescritvoTemplate } from "@/lib/docx-generator"
+import { gerarDocumento, gerarPdf, fazerDownloadDocumento, obterDescritvoTemplate, verificarTemplateIntegridade } from "@/lib/docx-generator"
+import { validarInspecaoParaDocumento } from "@/lib/validation"
 import type { Inspection } from "@/lib/types"
 
 interface DocumentGenerationProps {
@@ -21,24 +23,90 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
   const [inspection, setInspection] = useState<Inspection | null>(null)
   const [mounted, setMounted] = useState(false)
   const [gerando, setGerando] = useState(false)
+  const [validacao, setValidacao] = useState<any>(null)
+  const [checandoTemplate, setChecandoTemplate] = useState(false)
+  const [templateOK, setTemplateOK] = useState<boolean | null>(null)
 
+  /**
+   * EFFECT 1: Carregar inspeção quando componente monta
+   * 
+   * Busca os dados da vistoria usando ID do parâmetro de rota
+   */
   useEffect(() => {
     setMounted(true)
-    setInspection(getInspection(id) || null)
+    const data = getInspection(id)
+    setInspection(data || null)
   }, [id])
 
   /**
+   * EFFECT 2: Validar inspeção quando dados carregam
+   * 
+   * Executa validação completa (dados, participantes, NR-15, etc)
+   * Armazena resultado para mostrar feedback ao usuário
+   */
+  useEffect(() => {
+    if (inspection) {
+      // Chamar validação unificada de validação.ts
+      const resultado = validarInspecaoParaDocumento(inspection)
+      setValidacao(resultado)
+    }
+  }, [inspection])
+
+  /**
+   * EFFECT 3: Verificar integridade do template na primeira montagem
+   * 
+   * Valida se o arquivo DOCX template existe e está correto
+   * Mostra avisos se houver problemas
+   */
+  useEffect(() => {
+    if (!mounted) return
+
+    const verificar = async () => {
+      setChecandoTemplate(true)
+      try {
+        const resultado = await verificarTemplateIntegridade()
+        setTemplateOK(resultado.isValid)
+
+        if (!resultado.isValid) {
+          console.warn("Template com problemas:", resultado.detalhes)
+          toast.warning("Template DOCX pode estar com problemas. Geração pode falhar.", {
+            description: resultado.detalhes.slice(0, 3).join("\n"),
+            duration: 5000,
+          })
+        }
+      } catch (erro) {
+        console.error("Erro ao verificar template:", erro)
+        setTemplateOK(false)
+      } finally {
+        setChecandoTemplate(false)
+      }
+    }
+
+    verificar()
+  }, [mounted])
+
+  /**
    * Função para gerar o documento DOCX
+   * 
    * Passos:
-   * 1. Verificar se inspeção está carregada
-   * 2. Mostrar loading
-   * 3. Chamar gerarDocumento() que faz toda a lógica
+   * 1. Validar inspeção (erros críticos bloqueiam)
+   * 2. Mostrar indicador de carregamento
+   * 3. Chamar gerarDocumento() que faz todas as transformações
    * 4. Se sucesso: fazer download automático
-   * 5. Se erro: mostrar toast de erro
+   * 5. Se erro: mostrar mensagem descritiva
    */
   const handleExportar = async () => {
     if (!inspection) {
       toast.error("Vistoria não encontrada")
+      return
+    }
+
+    // Se há erros críticos, não gerar
+    if (!validacao?.isValid) {
+      toast.error("Não é possível gerar documento", {
+        description: "Existem campos obrigatórios não preenchidos. Revise e tente novamente.",
+        duration: 5000,
+      })
       return
     }
 
@@ -57,7 +125,10 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
     } catch (erro) {
       console.error("Erro ao gerar documento:", erro)
       const mensagem = erro instanceof Error ? erro.message : "Erro desconhecido"
-      toast.error(`Erro: ${mensagem}`)
+      toast.error("Erro ao gerar documento", {
+        description: mensagem,
+        duration: 5000,
+      })
     } finally {
       setGerando(false)
     }
@@ -65,15 +136,24 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
 
   /**
    * Função para visualizar o documento (abre em nova aba)
+   * 
    * Passos:
-   * 1. Validar que inspeção existe
-   * 2. Gerar o DOCX
-   * 3. Se sucesso: abrir URL do blob em nova aba
-   * 4. Usuário pode ver, editar ou salvar
+   * 1. Validar inspeção e erros críticos
+   * 2. Gerar o DOCX em memória
+   * 3. Criar URL temporária do Blob
+   * 4. Abrir em nova aba do navegador
+   * 5. Usuário pode visualizar, editar ou salvar
    */
   const handleVisualizar = async () => {
     if (!inspection) {
       toast.error("Vistoria não encontrada")
+      return
+    }
+
+    if (!validacao?.isValid) {
+      toast.error("Não é possível gerar documento", {
+        description: "Existem campos obrigatórios não preenchidos.",
+      })
       return
     }
 
@@ -82,7 +162,7 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
       // Gerar o documento
       const docxBlob = await gerarDocumento(inspection)
 
-      // Criar URL temporária
+      // Criar URL temporária do blob (arquivo em memória do navegador)
       const url = URL.createObjectURL(docxBlob)
 
       // Abrir em nova aba
@@ -92,7 +172,7 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
     } catch (erro) {
       console.error("Erro ao visualizar documento:", erro)
       const mensagem = erro instanceof Error ? erro.message : "Erro desconhecido"
-      toast.error(`Erro: ${mensagem}`)
+      toast.error("Erro ao visualizar", { description: mensagem })
     } finally {
       setGerando(false)
     }
@@ -100,15 +180,20 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
 
   /**
    * Função para exportar em PDF
-   * Passos:
-   * 1. Validar que inspeção existe
-   * 2. Gerar o PDF usando jsPDF
-   * 3. Se sucesso: downloaded com nome dinâmico
-   * 4. Feedback ao usuário
+   * 
+   * Usa jsPDF para gerar PDF (melhor para offline)
+   * Menos formatação que DOCX mas funciona sem template
    */
   const handleExportarPdf = async () => {
     if (!inspection) {
       toast.error("Vistoria não encontrada")
+      return
+    }
+
+    if (!validacao?.isValid) {
+      toast.error("Não é possível gerar documento", {
+        description: "Existem campos obrigatórios não preenchidos.",
+      })
       return
     }
 
@@ -128,20 +213,23 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
     } catch (erro) {
       console.error("Erro ao exportar PDF:", erro)
       const mensagem = erro instanceof Error ? erro.message : "Erro desconhecido"
-      toast.error(`Erro: ${mensagem}`)
+      toast.error("Erro ao gerar PDF", { description: mensagem })
     } finally {
       setGerando(false)
     }
   }
 
   /**
-   * Mostra instruções de como criar o template
+   * Mostra instruções de como criar o template DOCX
+   * 
+   * Útil se usuário quer customizar o template
    */
   const handleMostrarInstrucoes = () => {
     const instrucoes = obterDescritvoTemplate()
-    toast.message("Instruções do Template", {
-      description: instrucoes,
-      duration: 10000,
+    // Copiar para clipboard
+    navigator.clipboard.writeText(instrucoes)
+    toast.success("Instruções copiadas para clipboard!", {
+      description: "Cole em um arquivo de texto para referência.",
     })
   }
 
@@ -164,107 +252,176 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
 
   return (
     <div className="flex flex-col gap-4 px-4 py-6">
+      {/* ╔═══════════════════════════════════════════════════════════════════╗ */}
+      {/* ║ SEÇÃO 1: VERIFICAÇÃO DE TEMPLATE                                 ║ */}
+      {/* ╚═══════════════════════════════════════════════════════════════════╝ */}
+
+      {checandoTemplate && (
+        <Alert>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <AlertDescription>Verificando integridade do template...</AlertDescription>
+        </Alert>
+      )}
+
+      {templateOK === false && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Template DOCX pode estar corrompido. A geração pode falhar. 
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="ml-2 h-auto p-0"
+              onClick={handleMostrarInstrucoes}
+            >
+              Ver instruções
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* ╔═══════════════════════════════════════════════════════════════════╗ */}
+      {/* ║ SEÇÃO 2: RESULTADO DA VALIDAÇÃO                                  ║ */}
+      {/* ╚═══════════════════════════════════════════════════════════════════╝ */}
+
+      {validacao && (
+        <Card
+          className={
+            validacao.isValid
+              ? "border-green-200 bg-green-50"
+              : "border-red-200 bg-red-50"
+          }
+        >
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              {validacao.isValid ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              )}
+              <CardTitle className={validacao.isValid ? "text-green-900" : "text-red-900"}>
+                {validacao.isValid
+                  ? "✅ Pronto para gerar documento"
+                  : "❌ Documento não pode ser gerado"}
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={
+                validacao.isValid
+                  ? "text-sm text-green-800 whitespace-pre-wrap"
+                  : "text-sm text-red-800 whitespace-pre-wrap"
+              }
+            >
+              {validacao.mensagemFormatada}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ╔═══════════════════════════════════════════════════════════════════╗ */}
+      {/* ║ SEÇÃO 3: BOTÕES DE AÇÃO                                          ║ */}
+      {/* ╚═══════════════════════════════════════════════════════════════════╝ */}
+
+      <div className="grid grid-cols-1 gap-3 pt-4">
+        {/* Botão: Exportar DOCX */}
+        <Button
+          onClick={handleExportar}
+          disabled={
+            gerando || !validacao?.isValid || (templateOK === false)
+          }
+          className="h-12 text-base"
+        >
+          {gerando ? (
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-5 w-5" />
+          )}
+          Exportar como DOCX
+        </Button>
+
+        {/* Botão: Visualizar */}
+        <Button
+          onClick={handleVisualizar}
+          disabled={
+            gerando || !validacao?.isValid || (templateOK === false)
+          }
+          variant="outline"
+          className="h-12 text-base"
+        >
+          {gerando ? (
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          ) : (
+            <Eye className="mr-2 h-5 w-5" />
+          )}
+          Visualizar
+        </Button>
+
+        {/* Botão: Exportar PDF */}
+        <Button
+          onClick={handleExportarPdf}
+          disabled={gerando || !validacao?.isValid}
+          variant="outline"
+          className="h-12 text-base"
+        >
+          {gerando ? (
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          ) : (
+            <FileText className="mr-2 h-5 w-5" />
+          )}
+          Exportar como PDF
+        </Button>
+      </div>
+
+      <Separator className="my-4" />
+
+      {/* ╔═══════════════════════════════════════════════════════════════════╗ */}
+      {/* ║ SEÇÃO 4: RESUMO DA VISTORIA                                      ║ */}
+      {/* ╚═══════════════════════════════════════════════════════════════════╝ */}
+
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            <CardTitle className="text-base">Geração de Documento</CardTitle>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            Resumo da Vistoria
+          </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold text-foreground">{inspection.titulo}</span>
-            <span className="text-xs text-muted-foreground">{inspection.tipo}</span>
-          </div>
-
-          <Separator />
-
-          {/* Status de template */}
-          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-3">
-            <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-              <FileText className="h-4 w-4 text-primary" />
-            </span>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-foreground">Como criar o template</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                O template DOCX deve estar em /public/templates/vistoria-template.docx
+        <CardContent className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="font-medium text-muted-foreground">Título:</span>
+              <p className="text-foreground">{inspection.titulo}</p>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Data:</span>
+              <p className="text-foreground">
+                {new Date(inspection.dataVistoria).toLocaleDateString("pt-BR")}
               </p>
-              <Button
-                variant="link"
-                size="sm"
-                className="h-auto p-0 mt-2 text-xs"
-                onClick={handleMostrarInstrucoes}
-              >
-                Ver instruções →
-              </Button>
             </div>
           </div>
-
-          {/* Info sobre progresso */}
-          <div className="flex flex-col gap-2 rounded-lg bg-accent/5 p-3">
-            <p className="text-sm font-medium text-foreground">Dados da vistoria</p>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>✓ Título: {inspection.titulo}</li>
-              <li>✓ Endereco: {inspection.endereco}</li>
-              <li>✓ Responsável: {inspection.responsavel}</li>
-              <li>✓ Data: {inspection.dataVistoria}</li>
-              <li>
-                {inspection.participantes && inspection.participantes.length > 0
-                  ? `✓ Participantes: ${inspection.participantes.length}`
-                  : "⚠ Nenhum participante adicionado"}
-              </li>
-            </ul>
+          <div>
+            <span className="font-medium text-muted-foreground">Endereço:</span>
+            <p className="text-foreground">{inspection.endereco}</p>
           </div>
-
-          {/* Botões de ação */}
-          <div className="grid grid-cols-3 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 bg-transparent"
-              onClick={handleVisualizar}
-              disabled={gerando}
-            >
-              {gerando ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Eye className="mr-2 h-4 w-4" />
-              )}
-              Ver
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 bg-transparent"
-              onClick={handleExportarPdf}
-              disabled={gerando}
-              title="Exportar como PDF (jsPDF)"
-            >
-              {gerando ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="mr-2 h-4 w-4" />
-              )}
-              PDF
-            </Button>
-            <Button
-              type="button"
-              className="h-12"
-              onClick={handleExportar}
-              disabled={gerando}
-            >
-              {gerando ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              DOCX
-            </Button>
+          <div className="grid grid-cols-3 gap-2 pt-2 text-center">
+            <div className="rounded-lg bg-muted p-2">
+              <p className="text-sm font-medium">
+                {inspection.participantes?.length || 0}
+              </p>
+              <p className="text-xs text-muted-foreground">Participantes</p>
+            </div>
+            <div className="rounded-lg bg-muted p-2">
+              <p className="text-sm font-medium">{inspection.fotos?.length || 0}</p>
+              <p className="text-xs text-muted-foreground">Fotos</p>
+            </div>
+            <div className="rounded-lg bg-muted p-2">
+              <p className="text-sm font-medium">
+                {inspection.avaliacoesNR15?.filter((a) => a.aplica === true).length || 0}
+              </p>
+              <p className="text-xs text-muted-foreground">Anexos NR-15</p>
+            </div>
           </div>
-
-          <Button asChild variant="ghost" className="h-11 text-sm">
-            <Link href={`/vistorias/${id}`}>Voltar para detalhes</Link>
-          </Button>
         </CardContent>
       </Card>
     </div>
