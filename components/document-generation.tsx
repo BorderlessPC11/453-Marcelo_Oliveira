@@ -139,10 +139,9 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
    * 
    * Passos:
    * 1. Validar inspeção e erros críticos
-   * 2. Gerar o DOCX em memória
+   * 2. Gerar o PDF em memória
    * 3. Criar URL temporária do Blob
    * 4. Abrir em nova aba do navegador
-   * 5. Usuário pode visualizar, editar ou salvar
    */
   const handleVisualizar = async () => {
     if (!inspection) {
@@ -159,16 +158,24 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
 
     setGerando(true)
     try {
-      // Gerar o documento
-      const docxBlob = await gerarDocumento(inspection)
+      // Gerar o PDF para visualização no navegador
+      const pdfBlob = await gerarPdf(inspection)
 
       // Criar URL temporária do blob (arquivo em memória do navegador)
-      const url = URL.createObjectURL(docxBlob)
+      const url = URL.createObjectURL(pdfBlob)
 
       // Abrir em nova aba
-      window.open(url, "_blank")
+      const novaAba = window.open(url, "_blank", "noopener,noreferrer")
+      if (!novaAba) {
+        toast.warning("Não foi possível abrir a visualização", {
+          description: "Seu navegador bloqueou a nova aba. Permita pop-ups e tente novamente.",
+        })
+      }
 
-      toast.success("Documento aberto em nova aba!")
+      // Liberar a URL após algum tempo para evitar vazamento de memória
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+
+      toast.success("PDF aberto em nova aba!")
     } catch (erro) {
       console.error("Erro ao visualizar documento:", erro)
       const mensagem = erro instanceof Error ? erro.message : "Erro desconhecido"

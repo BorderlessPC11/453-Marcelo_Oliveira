@@ -208,6 +208,11 @@ export function updatePhotoCaption(
   if (!photo) return false
   photo.legenda = legenda
   inspection.atualizadoEm = new Date().toISOString()
+  addHistoryEntry(
+    inspection,
+    legenda ? `Legenda atualizada: "${legenda}"` : "Legenda removida",
+    "fotos"
+  )
   saveInspections(inspections)
   return true
 }

@@ -132,7 +132,7 @@ export function VoiceRecorder({
         setRecordingDuration((d) => d + 1)
       }, 1000)
     } catch {
-      toast.error("Permissao de microfone negada")
+      toast.error("Permissão de microfone negada")
     }
   }, [inspectionId, campo, recordingDuration, onUpdated])
 
@@ -339,7 +339,7 @@ export function VoiceRecorder({
                           Remover nota de voz?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          Esta acao nao pode ser desfeita.
+                          Esta ação não pode ser desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

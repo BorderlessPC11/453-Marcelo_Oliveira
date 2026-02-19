@@ -39,11 +39,11 @@ export function ParticipantForm({ inspectionId, onAdded }: ParticipantFormProps)
 
   function validate(): boolean {
     const newErrors: FormErrors = {}
-    if (!nome.trim()) newErrors.nome = "Nome e obrigatorio"
-    if (!cargo.trim()) newErrors.cargo = "Cargo e obrigatorio"
-    if (!empresa.trim()) newErrors.empresa = "Empresa e obrigatoria"
+    if (!nome.trim()) newErrors.nome = "Nome é obrigatório"
+    if (!cargo.trim()) newErrors.cargo = "Cargo é obrigatório"
+    if (!empresa.trim()) newErrors.empresa = "Empresa é obrigatória"
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "E-mail invalido"
+      newErrors.email = "E-mail inválido"
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0

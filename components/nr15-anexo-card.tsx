@@ -107,7 +107,7 @@ export function NR15AnexoCard({ anexo, avaliacao, onChange }: NR15AnexoCardProps
           </div>
         </div>
 
-        {/* APLICA / NAO APLICA buttons */}
+        {/* APLICA / NÃO APLICA buttons */}
         <div className="flex gap-2 mt-4">
           <Button
             type="button"
@@ -137,7 +137,7 @@ export function NR15AnexoCard({ anexo, avaliacao, onChange }: NR15AnexoCardProps
             onClick={() => handleAplicaChange(false)}
           >
             <X className="mr-1.5 h-4 w-4" />
-            Nao Aplica
+            Não Aplica
           </Button>
         </div>
 
@@ -161,10 +161,10 @@ export function NR15AnexoCard({ anexo, avaliacao, onChange }: NR15AnexoCardProps
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium">
-                Local da Avaliacao
+                Local da Avaliação
               </Label>
               <Input
-                placeholder="Descreva o local avaliado (setor, area, departamento)"
+                placeholder="Descreva o local avaliado (setor, área, departamento)"
                 value={avaliacao.localAvaliacao}
                 onChange={(e) => handleFieldChange("localAvaliacao", e.target.value)}
                 className="h-11 text-sm"
@@ -176,7 +176,7 @@ export function NR15AnexoCard({ anexo, avaliacao, onChange }: NR15AnexoCardProps
                 Atividades Desenvolvidas
               </Label>
               <Textarea
-                placeholder="Descreva as atividades exercidas no local que envolvem exposicao ao agente"
+                placeholder="Descreva as atividades exercidas no local que envolvem exposição ao agente"
                 value={avaliacao.atividadesDescritas}
                 onChange={(e) => handleFieldChange("atividadesDescritas", e.target.value)}
                 rows={3}
@@ -205,7 +205,7 @@ export function NR15AnexoCard({ anexo, avaliacao, onChange }: NR15AnexoCardProps
                   Medicoes Realizadas
                 </Label>
                 <Textarea
-                  placeholder="Descreva o instrumento, metodologia e resultados das medicoes"
+                  placeholder="Descreva o instrumento, metodologia e resultados das medições"
                   value={avaliacao.medicoes}
                   onChange={(e) => handleFieldChange("medicoes", e.target.value)}
                   rows={3}
@@ -216,7 +216,7 @@ export function NR15AnexoCard({ anexo, avaliacao, onChange }: NR15AnexoCardProps
 
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium">
-                Tempo de Exposicao
+                Tempo de Exposição
               </Label>
               <Input
                 placeholder="Ex: 6 horas/dia, intermitente, eventual"
@@ -419,7 +419,7 @@ export function NR15AnexoCard({ anexo, avaliacao, onChange }: NR15AnexoCardProps
           <div className="flex flex-col gap-2">
             <Label className="text-sm font-medium">Conclusao</Label>
             <Textarea
-              placeholder="Conclusao tecnica sobre a exposicao ao(s) agente(s) deste anexo"
+              placeholder="Conclusão técnica sobre a exposição ao(s) agente(s) deste anexo"
               value={avaliacao.conclusao}
               onChange={(e) => handleFieldChange("conclusao", e.target.value)}
               rows={3}

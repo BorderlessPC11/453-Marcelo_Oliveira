@@ -134,7 +134,7 @@ export function SignaturePad({
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
-            Desenhe a assinatura na area abaixo usando o dedo ou caneta.
+            Desenhe a assinatura na área abaixo usando o dedo ou caneta.
           </p>
           <div className="rounded-lg border-2 border-dashed border-border overflow-hidden bg-card">
             <canvas

@@ -22,10 +22,10 @@ import { Save } from "lucide-react"
 
 const TIPOS_VISTORIA = [
   "Entrega de obra",
-  "Recebimento de imovel",
+  "Recebimento de imóvel",
   "Vistoria cautelar",
-  "Vistoria periodica",
-  "Laudo tecnico",
+  "Vistoria periódica",
+  "Laudo técnico",
   "Outro",
 ]
 
@@ -50,11 +50,11 @@ export function NewInspectionForm() {
 
   function validate(): boolean {
     const newErrors: FormErrors = {}
-    if (!titulo.trim()) newErrors.titulo = "Titulo e obrigatorio"
+    if (!titulo.trim()) newErrors.titulo = "Título é obrigatório"
     if (!tipo) newErrors.tipo = "Selecione o tipo"
-    if (!endereco.trim()) newErrors.endereco = "Endereco e obrigatorio"
-    if (!responsavel.trim()) newErrors.responsavel = "Responsavel e obrigatorio"
-    if (!dataVistoria) newErrors.dataVistoria = "Data e obrigatoria"
+    if (!endereco.trim()) newErrors.endereco = "Endereço é obrigatório"
+    if (!responsavel.trim()) newErrors.responsavel = "Responsável é obrigatório"
+    if (!dataVistoria) newErrors.dataVistoria = "Data é obrigatória"
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -62,7 +62,7 @@ export function NewInspectionForm() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) {
-      toast.error("Preencha todos os campos obrigatorios")
+      toast.error("Preencha todos os campos obrigatórios")
       return
     }
 
@@ -165,7 +165,7 @@ export function NewInspectionForm() {
             </Label>
             <Input
               id="responsavel"
-              placeholder="Nome do responsavel tecnico"
+              placeholder="Nome do responsável técnico"
               value={responsavel}
               onChange={(e) => {
                 setResponsavel(e.target.value)

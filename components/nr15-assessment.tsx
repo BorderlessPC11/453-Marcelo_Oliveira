@@ -166,7 +166,7 @@ export function NR15Assessment({ id }: NR15AssessmentProps) {
   if (!inspection) {
     return (
       <div className="flex flex-col items-center gap-4 px-4 py-20 text-center">
-        <p className="text-lg font-medium text-foreground">Vistoria nao encontrada</p>
+        <p className="text-lg font-medium text-foreground">Vistoria não encontrada</p>
         <Button onClick={() => router.push("/vistorias")}>Voltar para lista</Button>
       </div>
     )
@@ -237,7 +237,7 @@ export function NR15Assessment({ id }: NR15AssessmentProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Info className="h-4 w-4 text-primary" />
-                Progresso da Avaliacao NR-15
+                Progresso da Avaliação NR-15
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -257,7 +257,7 @@ export function NR15Assessment({ id }: NR15AssessmentProps) {
                 <div className="flex flex-col items-center gap-1 rounded-lg bg-primary/5 p-3">
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                   <span className="text-xl font-bold text-foreground">{stats.aplicaveis}</span>
-                  <span className="text-xs text-muted-foreground text-center">Aplicaveis</span>
+                  <span className="text-xs text-muted-foreground text-center">Aplicáveis</span>
                 </div>
                 <div className="flex flex-col items-center gap-1 rounded-lg bg-secondary p-3">
                   <FileText className="h-4 w-4 text-secondary-foreground" />
@@ -269,7 +269,7 @@ export function NR15Assessment({ id }: NR15AssessmentProps) {
               {stats.aplicaveis > 0 && (
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">
-                    Preenchimento dos aplicaveis
+                    Preenchimento dos aplicáveis
                   </span>
                   <div className="flex items-center gap-3">
                     <Progress value={stats.preenchimentoAplicaveis} className="h-2 flex-1" />

@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -145,15 +146,25 @@ export function PhotoGallery({
 
   function startEditCaption(photo: InspectionPhoto) {
     setEditingId(photo.id)
-    setEditCaption(photo.legenda)
+    setEditCaption(photo.legenda || "")
   }
 
   function saveCaption(photoId: string) {
-    updatePhotoCaption(inspectionId, photoId, editCaption.trim())
-    setEditingId(null)
-    setEditCaption("")
-    toast.success("Legenda atualizada")
-    onUpdated()
+    const nextCaption = (editCaption || "").trim()
+    const success = updatePhotoCaption(inspectionId, photoId, nextCaption)
+    if (success) {
+      setEditingId(null)
+      setEditCaption("")
+      setPreviewPhoto((current) =>
+        current && current.id === photoId
+          ? { ...current, legenda: nextCaption }
+          : current
+      )
+      toast.success("Legenda atualizada")
+      onUpdated()
+    } else {
+      toast.error("Erro ao atualizar legenda")
+    }
   }
 
   return (
@@ -240,7 +251,7 @@ export function PhotoGallery({
                   {/* Image */}
                   <button
                     type="button"
-                    className="block w-full aspect-square"
+                    className="relative block w-full aspect-square"
                     onClick={() => setPreviewPhoto(photo)}
                     aria-label={`Ver foto${photo.legenda ? `: ${photo.legenda}` : ""}`}
                   >
@@ -249,7 +260,7 @@ export function PhotoGallery({
                       alt={photo.legenda || "Foto da vistoria"}
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute inset-0 flex items-center justify-center bg-foreground/0 opacity-0 group-hover:bg-foreground/10 group-hover:opacity-100 transition-all">
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-foreground/0 opacity-0 group-hover:bg-foreground/10 group-hover:opacity-100 transition-all">
                       <ZoomIn className="h-6 w-6 text-card" />
                     </span>
                   </button>
@@ -271,7 +282,7 @@ export function PhotoGallery({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remover foto?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acao nao pode ser desfeita.
+                            Esta ação não pode ser desfeita.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -298,17 +309,37 @@ export function PhotoGallery({
                           className="h-7 text-xs"
                           autoFocus
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") saveCaption(photo.id)
-                            if (e.key === "Escape") setEditingId(null)
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              saveCaption(photo.id)
+                            }
+                            if (e.key === "Escape") {
+                              setEditingId(null)
+                              setEditCaption("")
+                            }
                           }}
+                          aria-label="Editar legenda da foto"
                         />
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 shrink-0"
+                          className="h-7 w-7 shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                           onClick={() => saveCaption(photo.id)}
+                          title="Salvar legenda"
                         >
                           <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            setEditingId(null)
+                            setEditCaption("")
+                          }}
+                          title="Cancelar"
+                        >
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ) : (
@@ -356,6 +387,9 @@ export function PhotoGallery({
             <DialogTitle className="text-sm">
               {previewPhoto?.legenda || "Foto da vistoria"}
             </DialogTitle>
+            <DialogDescription>
+              Visualização da foto da vistoria
+            </DialogDescription>
           </DialogHeader>
           {previewPhoto && (
             <div className="px-4 pb-4">

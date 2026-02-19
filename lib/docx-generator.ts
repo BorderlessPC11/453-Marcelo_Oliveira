@@ -11,6 +11,169 @@
 import type { Inspection, InspectionPhoto } from "./types"
 import PizZip from "pizzip"
 import Docxtemplater from "docxtemplater"
+import ImageModule from "open-docxtemplater-image-module"
+
+const AUTO_SECTION_FOTOS = [
+  "<w:p><w:r><w:t>Fotos</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{#fotos}</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{%foto}</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{legenda}</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{/fotos}</w:t></w:r></w:p>",
+].join("")
+
+const AUTO_SECTION_ASSINATURAS = [
+  "<w:p><w:r><w:t>Assinaturas</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{#assinaturas}</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{nome} - {cargo} - {empresa}</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{%assinatura}</w:t></w:r></w:p>",
+  "<w:p><w:r><w:t>{/assinaturas}</w:t></w:r></w:p>",
+].join("")
+
+function injetarSecoesAutomaticas(templateXml: string): string {
+  const hasFotos = templateXml.includes("{#fotos}")
+  const hasAssinaturas = templateXml.includes("{#assinaturas}")
+
+  if (hasFotos && hasAssinaturas) {
+    return templateXml
+  }
+
+  let insertIndex = templateXml.lastIndexOf("</w:body>")
+  if (insertIndex === -1) {
+    return templateXml
+  }
+
+  const sectPrIndex = templateXml.indexOf("<w:sectPr")
+  if (sectPrIndex !== -1 && sectPrIndex < insertIndex) {
+    insertIndex = sectPrIndex
+  }
+
+  let injection = ""
+  if (!hasFotos) {
+    injection += AUTO_SECTION_FOTOS
+  }
+  if (!hasAssinaturas) {
+    injection += AUTO_SECTION_ASSINATURAS
+  }
+
+  return (
+    templateXml.slice(0, insertIndex) +
+    injection +
+    templateXml.slice(insertIndex)
+  )
+}
+
+function criarTemplateBasicoComImagens(): PizZip {
+  const wordXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document 
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+  xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+  xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+  <w:body>
+    <w:p><w:r><w:t>{titulo}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Tipo: {tipo}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Endereco: {endereco}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Responsavel: {responsavel}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Data da Vistoria: {dataVistoria}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Data de Geracao: {dataGeracao}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Status: {statusTexto}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Observacoes: {observacoes}</w:t></w:r></w:p>
+
+    <w:p><w:r><w:t>Participantes ({totalParticipantes})</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{participantes}</w:t></w:r></w:p>
+
+    <w:p><w:r><w:t>Fotos</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{#fotos}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{%foto}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{legenda}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{/fotos}</w:t></w:r></w:p>
+
+    <w:p><w:r><w:t>Assinaturas</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{#assinaturas}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{nome} - {cargo} - {empresa}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{%assinatura}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{/assinaturas}</w:t></w:r></w:p>
+  </w:body>
+</w:document>`
+
+  const zip = new PizZip()
+  zip.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`
+  )
+
+  zip.folder("_rels")
+  zip.file(
+    "_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+  )
+
+  zip.file("word/document.xml", wordXml)
+
+  zip.file(
+    "word/styles.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+        <w:sz w:val="22"/>
+      </w:rPr>
+    </w:rPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+</w:styles>`
+  )
+
+  zip.folder("word/_rels")
+  zip.file(
+    "word/_rels/document.xml.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+  )
+
+  return zip
+}
+
+function patchScopeManagerGetValue(scopeManager: any): void {
+  if (!scopeManager || scopeManager.__patchedGetValue) {
+    return
+  }
+
+  const originalGetValue = scopeManager.getValue?.bind(scopeManager)
+  if (!originalGetValue) {
+    return
+  }
+
+  scopeManager.getValue = (
+    tag: string,
+    meta?: { part?: { lIndex: number; offset: number } }
+  ) => {
+    if (!meta || !meta.part) {
+      return originalGetValue(tag, { part: { lIndex: 0, offset: 0 } })
+    }
+    return originalGetValue(tag, meta)
+  }
+
+  scopeManager.__patchedGetValue = true
+}
 
 /**
  * Formata data para formato brasileiro (DD/MM/YYYY)
@@ -34,6 +197,27 @@ function base64ToBuffer(base64: string): Buffer {
   
   // Retorna um Buffer a partir da string base64
   return Buffer.from(base64String, "base64")
+}
+
+function normalizeImageDataUrl(value: string | undefined, mimeType: string): string {
+  if (!value) {
+    return ""
+  }
+
+  if (value.startsWith("data:image/")) {
+    return value
+  }
+
+  if (value.startsWith("data:")) {
+    return value
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ""
+  }
+
+  return `data:${mimeType};base64,${trimmed}`
 }
 
 /**
@@ -524,7 +708,29 @@ export async function gerarDocumento(inspection: Inspection): Promise<Blob> {
     // - [Content_Types].xml (metadados)
     // - word/media/ (pasta para imagens/assinaturas)
     // - etc.
-    const zip = new PizZip(arrayBuffer)
+    let zip = new PizZip(arrayBuffer)
+
+    const documentXml = zip.file("word/document.xml")
+    if (documentXml) {
+      const xmlOriginal = documentXml.asText()
+      console.log("📄 Verificando template...")
+      console.log("  - Tem {#fotos}?", xmlOriginal.includes("{#fotos}"))
+      console.log("  - Tem {#assinaturas}?", xmlOriginal.includes("{#assinaturas}"))
+      console.log("  - Tem {%assinatura}?", xmlOriginal.includes("{%assinatura}"))
+      console.log("  - Tem {%foto}?", xmlOriginal.includes("{%foto}"))
+      
+      const precisaFotos = (inspection.fotos?.length || 0) > 0
+      const precisaAssinaturas =
+        (inspection.participantes || []).some((p) => p.assinatura)
+
+      const faltamFotos = precisaFotos && !xmlOriginal.includes("{#fotos}")
+      const faltamAssinaturas =
+        precisaAssinaturas && !xmlOriginal.includes("{#assinaturas}")
+
+      if (faltamFotos || faltamAssinaturas) {
+        zip = criarTemplateBasicoComImagens()
+      }
+    }
 
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║ ETAPA 4: PREPARAR DADOS PARA SUBSTITUIÇÃO                                ║
@@ -570,6 +776,43 @@ export async function gerarDocumento(inspection: Inspection): Promise<Blob> {
       totalFotos: inspection.fotos?.length || 0, // {totalFotos}
       fotosComLegenda: inspection.fotos?.filter((f) => f.legenda?.trim()).length || 0,
 
+      // Fallbacks para tags de imagem fora de loops
+      foto: "",
+      assinatura: "",
+
+      // ├─ FOTOS (para loop no template)
+      // {#fotos}{%foto}{legenda}{/fotos}
+      fotos: (inspection.fotos || []).reduce((acc, f) => {
+        const dataUrl = normalizeImageDataUrl(f.dataUrl, "image/jpeg")
+        if (!dataUrl) {
+          return acc
+        }
+        acc.push({
+          foto: dataUrl, // Base64 da imagem
+          legenda: f.legenda || "Sem legenda",
+          data: formatarData(f.criadoEm),
+        })
+        return acc
+      }, [] as Array<{ foto: string; legenda: string; data: string }>),
+
+      // ├─ ASSINATURAS (para loop no template)
+      // {#assinaturas}{nome}{cargo}{%assinatura}{/assinaturas}
+      assinaturas: (inspection.participantes || []).reduce((acc, p) => {
+        console.log("🔍 Processando participante:", p.nome, "Tem assinatura?", !!p.assinatura)
+        const assinatura = normalizeImageDataUrl(p.assinatura, "image/png")
+        console.log("✅ Assinatura normalizada:", assinatura ? `${assinatura.substring(0, 50)}...` : "VAZIO")
+        if (!assinatura) {
+          return acc
+        }
+        acc.push({
+          nome: p.nome,
+          cargo: p.cargo || "Sem cargo",
+          empresa: p.empresa || "Sem empresa",
+          assinatura, // Base64 da assinatura
+        })
+        return acc
+      }, [] as Array<{ nome: string; cargo: string; empresa: string; assinatura: string }>),
+
       // ├─ DADOS DE AVALIAÇÃO NR-15 (para loops no template)
       // Se o template usar {#avaliacoes}{/avaliacoes}, cada avaliação será renderizada
       avaliacoes: inspection.avaliacoesNR15?.map((av) => ({
@@ -584,20 +827,73 @@ export async function gerarDocumento(inspection: Inspection): Promise<Blob> {
       })) || [],
     }
 
+    console.log("📊 Dados preparados:")
+    console.log("  - Total de fotos:", dados.fotos.length)
+    console.log("  - Total de assinaturas:", dados.assinaturas.length)
+    if (dados.assinaturas.length > 0) {
+      console.log("  - Primeira assinatura:", dados.assinaturas[0].nome, dados.assinaturas[0].assinatura.substring(0, 50) + "...")
+    }
+
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║ ETAPA 5: CRIAR INSTÂNCIA DE DOCXTEMPLATER E CARREGAR DADOS                ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║ CONFIGURAR MÓDULO DE IMAGENS                                             ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
+    
+    // Configurar o módulo de imagem para docxtemplater
+    const imageOpts = {
+      centered: false,
+      getImage(tag: string | undefined | null) {
+        console.log("🖼️ getImage chamado com tag:", typeof tag, tag ? `${String(tag).substring(0, 50)}...` : "null/undefined")
+        if (!tag || typeof tag !== "string") {
+          console.log("❌ Tag inválida (null, undefined ou não é string)")
+          return null
+        }
+        if (!tag.startsWith("data:image/")) {
+          console.log("❌ Tag não começa com 'data:image/':", tag.substring(0, 50))
+          return null
+        }
+        console.log("✅ Tag válida, convertendo para buffer")
+        // tag é a base64 da imagem
+        return base64ToBuffer(tag)
+      },
+      getSize(img: Buffer | null, tag: string, tagName: string) {
+        if (!img) {
+          return [0, 0]
+        }
+        // Tamanho padrão para imagens em pontos (1 ponto = 1/72 polegada)
+        // 400x300 pontos = aproximadamente 14cm x 10.5cm
+        if (tagName === "assinatura") {
+          // Assinaturas menores: 200x100 pontos
+          return [200, 100]
+        }
+        // Fotos maiores: 400x300 pontos
+        return [400, 300]
+      },
+    }
+
     // Docxtemplater parser o XML do document.xml
     // paragraphLoop=true: permite usar loops de parágrafos
     // linebreaks=true: converte \n em quebras de linha no DOCX
+    const imageModule = new ImageModule(imageOpts)
+    const originalRender = imageModule.render?.bind(imageModule)
+    if (originalRender) {
+      imageModule.render = (part: any, options: any) => {
+        patchScopeManagerGetValue(options?.scopeManager)
+        return originalRender(part, options)
+      }
+    }
+
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
+      modules: [imageModule],
+      nullGetter: () => "",
     })
 
-    // Alimentar o docxtemplater com os dados de substituição
-    doc.setData(dados)
+    patchScopeManagerGetValue((doc as any).scopeManager)
 
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║ ETAPA 6: RENDERIZAR O DOCUMENTO                                          ║
@@ -605,13 +901,28 @@ export async function gerarDocumento(inspection: Inspection): Promise<Blob> {
     
     // Renderizar = aplicar as transformações no XML
     // Substitui {chave} por valores, processa loops, etc.
+    // render(data) substitui o método deprecated setData() + render()
     try {
-      doc.render()
-    } catch (erro) {
+      doc.render(dados)
+    } catch (erro: any) {
       // Se houver erro, é provável que um placeholder não tenha correspondência
-      console.error("Erro ao renderizar documento:", erro)
+      console.error("❌ Erro ao renderizar documento:", erro)
+      
+      // Docxtemplater pode ter múltiplos erros
+      if (erro.properties && erro.properties.errors) {
+        console.error("📋 Detalhes dos erros:")
+        erro.properties.errors.forEach((e: any, idx: number) => {
+          console.error(`  ${idx + 1}. ${e.message}`)
+          console.error(`     Tipo: ${e.name}`)
+          if (e.properties) {
+            console.error(`     Tag: ${e.properties.id || e.properties.key || 'N/A'}`)
+            console.error(`     Linha: ${e.properties.lineNumber || 'N/A'}`)
+          }
+        })
+      }
+      
       throw new Error(
-        `Erro ao gerar documento: ${(erro as Error).message}\n\n` +
+        `Erro ao gerar documento: ${erro.message}\n\n` +
         `Verifique se todos os placeholders do template existem nos dados. ` +
         `Use obterDescritvoTemplate() para ver os placeholders necessários.`
       )
@@ -662,8 +973,13 @@ export function fazerDownloadDocumento(blob: Blob, nomeArquivo: string): void {
   link.click()
 
   // Limpar: remover link do DOM e liberar URL
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  // Usar setTimeout para garantir que o click foi processado
+  setTimeout(() => {
+    if (link.parentNode) {
+      link.parentNode.removeChild(link)
+    }
+    URL.revokeObjectURL(url)
+  }, 100)
 }
 
 /**
@@ -1015,6 +1331,36 @@ Setores Avaliados: {setoresAvaliados}
 Descrição Atividades: {descricaoAtividades}
 EPCs Identificados: {epcsIdentificados}
 
+--- FOTOS ---
+Total de Fotos: {totalFotos}
+
+Para incluir fotos em loop (uma por uma):
+{#fotos}
+{%foto}
+Legenda: {legenda}
+Data: {data}
+{/fotos}
+
+--- ASSINATURAS ---
+Para incluir assinaturas em loop:
+{#assinaturas}
+Nome: {nome}
+Cargo: {cargo}
+Empresa: {empresa}
+{%assinatura}
+{/assinaturas}
+
+--- AVALIAÇÕES NR-15 ---
+Para incluir avaliações NR-15:
+{#avaliacoes}
+Anexo {anexoNumero}: {aplica}
+Local: {localAvaliacao}
+Atividades: {atividadesDescritas}
+EPIs: {episUtilizados}
+Agentes Identificados: {agentesIdentificados}
+Conclusão: {conclusao}
+{/avaliacoes}
+
 --- OBSERVAÇÕES ---
 {nr15Observacoes}
 {observacoes}
@@ -1026,9 +1372,11 @@ Status: {status}
 4. Salve como "vistoria-template.docx"
 5. Coloque em /public/templates/vistoria-template.docx
 
-NOTA SOBRE IMAGENS:
-As imagens são inseridas no DOCX através de pasta 'media' dentro do ZIP.
-Use gerarDocumentoComFotos() para documentos com fotos integradas.
+AJUDA - Como adicionar imagens no template:
+- Use {%foto} para inserir imagens de fotos (% é importante!)
+- Use {%assinatura} para inserir assinaturas digitais
+- As imagens devem estar dentro de um loop {#fotos}...{/fotos} ou {#assinaturas}...{/assinaturas}
+- O placeholder com % será substituído pela imagem real
 `
 }
 

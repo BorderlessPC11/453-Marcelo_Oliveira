@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 export const metadata: Metadata = {
   title: "Vistorias App",
-  description: "Aplicativo para vistorias tecnicas em campo",
+  description: "Aplicativo para vistorias técnicas em campo",
 }
 
 export const viewport: Viewport = {

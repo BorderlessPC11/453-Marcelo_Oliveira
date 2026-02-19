@@ -102,7 +102,7 @@ export function InspectionHistory({ id }: InspectionHistoryProps) {
     return (
       <div className="flex flex-col items-center gap-4 px-4 py-20 text-center">
         <p className="text-lg font-medium text-foreground">
-          Vistoria nao encontrada
+          Vistoria não encontrada
         </p>
         <Button onClick={() => router.push("/vistorias")}>
           Voltar para lista

@@ -130,7 +130,7 @@ export function InspectionList() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Remover vistoria?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Esta acao nao pode ser desfeita. A vistoria e todos os dados associados serao removidos.
+                          Esta ação não pode ser desfeita. A vistoria e todos os dados associados serão removidos.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

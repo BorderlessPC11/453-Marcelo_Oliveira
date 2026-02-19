@@ -94,7 +94,7 @@ export function InspectionDetail({ id }: InspectionDetailProps) {
   if (!inspection) {
     return (
       <div className="flex flex-col items-center gap-4 px-4 py-20 text-center">
-        <p className="text-lg font-medium text-foreground">Vistoria nao encontrada</p>
+        <p className="text-lg font-medium text-foreground">Vistoria não encontrada</p>
         <Button onClick={() => router.push("/vistorias")}>Voltar para lista</Button>
       </div>
     )
@@ -208,10 +208,10 @@ export function InspectionDetail({ id }: InspectionDetailProps) {
             </span>
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-foreground">
-                Avaliacao NR-15
+                Avaliação NR-15
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Insalubridade - Riscos Fisicos, Quimicos, Biologicos
+                Insalubridade - Riscos Físicos, Químicos, Biológicos
               </p>
               {inspection.avaliacoesNR15 && inspection.avaliacoesNR15.length > 0 && (() => {
                 const avaliados = inspection.avaliacoesNR15.filter(
