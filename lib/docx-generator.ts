@@ -72,13 +72,11 @@ function criarTemplateBasicoComImagens(): PizZip {
   xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>
     <w:p><w:r><w:t>{titulo}</w:t></w:r></w:p>
-    <w:p><w:r><w:t>Tipo: {tipo}</w:t></w:r></w:p>
-    <w:p><w:r><w:t>Endereco: {endereco}</w:t></w:r></w:p>
-    <w:p><w:r><w:t>Responsavel: {responsavel}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Condomínio: {condominio}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Torre: {torre}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Local: {local}</w:t></w:r></w:p>
     <w:p><w:r><w:t>Data da Vistoria: {dataVistoria}</w:t></w:r></w:p>
-    <w:p><w:r><w:t>Data de Geracao: {dataGeracao}</w:t></w:r></w:p>
-    <w:p><w:r><w:t>Status: {statusTexto}</w:t></w:r></w:p>
-    <w:p><w:r><w:t>Observacoes: {observacoes}</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Horário: {horarioInicio} ate {horarioFim}</w:t></w:r></w:p>
 
     <w:p><w:r><w:t>Participantes ({totalParticipantes})</w:t></w:r></w:p>
     <w:p><w:r><w:t>{participantes}</w:t></w:r></w:p>
@@ -423,14 +421,26 @@ function validarDados(inspection: Inspection): string[] {
   if (!inspection.titulo?.trim()) {
     erros.push("❌ Título da vistoria não preenchido")
   }
-  if (!inspection.endereco?.trim()) {
-    erros.push("❌ Endereço não preenchido")
+  if (!inspection.local?.trim()) {
+    erros.push("❌ Local não preenchido")
   }
-  if (!inspection.responsavel?.trim()) {
-    erros.push("❌ Responsável não preenchido")
+  if (!inspection.condominio?.trim()) {
+    erros.push("❌ Condomínio não preenchido")
+  }
+  if (!inspection.torre?.trim()) {
+    erros.push("❌ Torre não preenchida")
   }
   if (!inspection.dataVistoria) {
     erros.push("❌ Data da vistoria não preenchida")
+  }
+  if (!inspection.horarioInicio) {
+    erros.push("❌ Horário de início não preenchido")
+  }
+  if (!inspection.horarioFim) {
+    erros.push("❌ Horário de término não preenchido")
+  }
+  if (inspection.horarioInicio && inspection.horarioFim && inspection.horarioFim <= inspection.horarioInicio) {
+    erros.push("❌ Horário de término deve ser posterior ao início")
   }
 
   // VALIDAÇÃO 2: Deve haver pelo menos um participante
@@ -741,12 +751,12 @@ export async function gerarDocumento(inspection: Inspection): Promise<Blob> {
     const dados = {
       // ├─ INFORMAÇÕES BÁSICAS
       titulo: inspection.titulo,                           // {titulo}
-      tipo: inspection.tipo,                               // {tipo}
-      endereco: inspection.endereco,                       // {endereco}
-      responsavel: inspection.responsavel,                 // {responsavel}
+      condominio: inspection.condominio,                   // {condominio}
+      torre: inspection.torre,                             // {torre}
+      local: inspection.local,                             // {local}
       dataVistoria: formatarData(inspection.dataVistoria), // {dataVistoria} - formato BR (DD/MM/YYYY)
-      dataGeracao: formatarData(new Date().toISOString()), // {dataGeracao} - quando documento foi criado
-      observacoes: inspection.observacoes || "Nenhuma observação", // {observacoes}
+      horarioInicio: inspection.horarioInicio,             // {horarioInicio}
+      horarioFim: inspection.horarioFim,                   // {horarioFim}
 
       // ├─ PARTICIPANTES
       // {participantes} será uma string com cada participante em uma linha
@@ -1150,10 +1160,11 @@ export async function gerarPdf(inspection: Inspection): Promise<Blob> {
 
     // Seção de Informações Gerais
     adicionarTexto("INFORMAÇÕES GERAIS", 11, true, 8)
-    adicionarTexto(`Tipo: ${inspection.tipo}`, 10, false, 2)
-    adicionarTexto(`Endereço: ${inspection.endereco}`, 10, false, 2)
+    adicionarTexto(`Condomínio: ${inspection.condominio}`, 10, false, 2)
+    adicionarTexto(`Torre: ${inspection.torre}`, 10, false, 2)
+    adicionarTexto(`Local: ${inspection.local}`, 10, false, 2)
     adicionarTexto(`Data da Vistoria: ${formatarData(inspection.dataVistoria)}`, 10, false, 2)
-    adicionarTexto(`Responsável: ${inspection.responsavel || "N/A"}`, 10, false, 2)
+    adicionarTexto(`Horário: ${inspection.horarioInicio} até ${inspection.horarioFim}`, 10, false, 2)
     adicionarTexto(`Status: ${inspection.status || "rascunho"}`, 10, false, 2)
 
     // Seção de Participantes
@@ -1314,12 +1325,13 @@ Para criar o template em Microsoft Word ou LibreOffice:
 
 --- CABEÇALHO ---
 {titulo}
-{tipo}
 
 --- INSPEÇÃO ---
-Endereço: {endereco}
-Responsável: {responsavel}
+Condomínio: {condominio}
+Torre: {torre}
+Local: {local}
 Data: {dataVistoria}
+Horário: {horarioInicio} até {horarioFim}
 Status: {statusTexto}
 
 --- PARTICIPANTES ---

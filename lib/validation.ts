@@ -221,16 +221,32 @@ export function validarInspecaoParaDocumento(inspection: Inspection): ResultadoV
     erros.push("Título da vistoria não foi preenchido")
   }
 
-  if (!inspection.endereco?.trim()) {
-    erros.push("Endereço da vistoria não foi preenchido")
+  if (!inspection.local?.trim()) {
+    erros.push("Local da vistoria não foi preenchido")
   }
 
-  if (!inspection.responsavel?.trim()) {
-    erros.push("Responsável pela vistoria não foi preenchido")
+  if (!inspection.condominio?.trim()) {
+    erros.push("Condomínio não foi preenchido")
+  }
+
+  if (!inspection.torre?.trim()) {
+    erros.push("Torre não foi preenchida")
   }
 
   if (!inspection.dataVistoria) {
     erros.push("Data da vistoria não foi preenchida")
+  }
+
+  if (!inspection.horarioInicio) {
+    erros.push("Horário de início não foi preenchido")
+  }
+
+  if (!inspection.horarioFim) {
+    erros.push("Horário de término não foi preenchido")
+  }
+
+  if (inspection.horarioInicio && inspection.horarioFim && inspection.horarioFim <= inspection.horarioInicio) {
+    erros.push("Horário de término deve ser posterior ao horário de início")
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

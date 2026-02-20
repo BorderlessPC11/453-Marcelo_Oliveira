@@ -161,7 +161,7 @@ export function Dashboard() {
                       <div className="flex items-center gap-1 mt-1">
                         <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                         <p className="text-xs text-muted-foreground truncate">
-                          {inspection.endereco || "Sem endereço"}
+                          {inspection.condominio ? `${inspection.condominio} - Torre ${inspection.torre}` : "Sem condomínio"}
                         </p>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">

@@ -408,8 +408,16 @@ export function DocumentGeneration({ id }: DocumentGenerationProps) {
             </div>
           </div>
           <div>
-            <span className="font-medium text-muted-foreground">Endereço:</span>
-            <p className="text-foreground">{inspection.endereco}</p>
+            <span className="font-medium text-muted-foreground">Condomínio:</span>
+            <p className="text-foreground">{inspection.condominio}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Torre:</span>
+            <p className="text-foreground">{inspection.torre}</p>
+          </div>
+          <div>
+            <span className="font-medium text-muted-foreground">Local:</span>
+            <p className="text-foreground">{inspection.local}</p>
           </div>
           <div className="grid grid-cols-3 gap-2 pt-2 text-center">
             <div className="rounded-lg bg-muted p-2">

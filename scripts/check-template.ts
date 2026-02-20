@@ -21,7 +21,6 @@ if (!fs.existsSync(templatePath)) {
   console.log("1. Abra Microsoft Word ou LibreOffice")
   console.log("2. Crie um documento com os placeholders:")
   console.log("   - {titulo}")
-  console.log("   - {tipo}")
   console.log("   - {endereco}")
   console.log("   - {responsavel}")
   console.log("   - {dataVistoria}")
@@ -79,7 +78,6 @@ try {
   // Lista de placeholders esperados
   const expected = [
     "titulo",
-    "tipo",
     "endereco",
     "responsavel",
     "dataVistoria",

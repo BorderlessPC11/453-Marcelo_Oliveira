@@ -1,6 +1,10 @@
 import { AppHeader } from "@/components/app-header"
 import { DocumentGeneration } from "@/components/document-generation"
 
+export async function generateStaticParams() {
+  return []
+}
+
 export default async function DocumentoPage({
   params,
 }: {

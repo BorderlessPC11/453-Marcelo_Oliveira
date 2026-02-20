@@ -1,6 +1,10 @@
 import { AppHeader } from "@/components/app-header"
 import { InspectionDetail } from "@/components/inspection-detail"
 
+export async function generateStaticParams() {
+  return []
+}
+
 export default async function VistoriaDetailPage({
   params,
 }: {

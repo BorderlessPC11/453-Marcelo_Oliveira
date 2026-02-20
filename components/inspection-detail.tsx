@@ -136,7 +136,6 @@ export function InspectionDetail({ id }: InspectionDetailProps) {
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <CardTitle className="text-lg">{inspection.titulo}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">{inspection.tipo}</p>
             </div>
             <StatusBadge status={inspection.status} />
           </div>
@@ -144,24 +143,22 @@ export function InspectionDetail({ id }: InspectionDetailProps) {
         <CardContent className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-foreground">{inspection.endereco}</span>
+            <span className="text-sm text-foreground">{inspection.local}</span>
           </div>
           <div className="flex items-center gap-3">
-            <User className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-foreground">{inspection.responsavel}</span>
+            <span className="text-xs font-medium text-muted-foreground">Condomínio:</span>
+            <span className="text-sm text-foreground">{inspection.condominio}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-muted-foreground">Torre:</span>
+            <span className="text-sm text-foreground">{inspection.torre}</span>
           </div>
           <div className="flex items-center gap-3">
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-sm text-foreground">
-              {format(new Date(inspection.dataVistoria + "T12:00:00"), "dd/MM/yyyy")}
+              {format(new Date(inspection.dataVistoria + "T12:00:00"), "dd/MM/yyyy")} ({inspection.horarioInicio} - {inspection.horarioFim})
             </span>
           </div>
-          {inspection.observacoes && (
-            <div className="flex items-start gap-3">
-              <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <span className="text-sm text-foreground">{inspection.observacoes}</span>
-            </div>
-          )}
 
           <Separator className="my-1" />
 

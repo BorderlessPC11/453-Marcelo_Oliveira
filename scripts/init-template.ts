@@ -31,11 +31,6 @@ const WORD_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <w:t>{titulo}</w:t>
       </w:r>
     </w:p>
-    <w:p>
-      <w:r>
-        <w:t>Tipo: {tipo}</w:t>
-      </w:r>
-    </w:p>
 
     <!-- DADOS DA INSPEÇÃO -->
     <w:p>

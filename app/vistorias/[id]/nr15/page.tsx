@@ -1,6 +1,10 @@
 import { AppHeader } from "@/components/app-header"
 import { NR15Assessment } from "@/components/nr15-assessment"
 
+export async function generateStaticParams() {
+  return []
+}
+
 export default async function NR15Page({
   params,
 }: {

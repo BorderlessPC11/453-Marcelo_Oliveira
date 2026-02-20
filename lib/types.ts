@@ -38,11 +38,15 @@ export interface HistoryEntry {
 export interface Inspection {
   id: string
   titulo: string
-  tipo: string
-  endereco: string
-  responsavel: string
+  local: string
+  condominio: string
+  torre: string
   dataVistoria: string
-  observacoes: string
+  horarioInicio: string
+  horarioFim: string
+  endereco?: string
+  responsavel?: string
+  observacoes?: string
   status: InspectionStatus
   participantes: Participant[]
   criadoEm: string

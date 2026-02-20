@@ -111,7 +111,7 @@ export function InspectionList() {
                   <div className="flex items-center gap-1 mt-1">
                     <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                     <p className="text-xs text-muted-foreground truncate">
-                      {inspection.endereco || "Sem endereco"}
+                      {inspection.condominio ? `${inspection.condominio} - Torre ${inspection.torre}` : "Sem condomínio"}
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">

@@ -20,41 +20,43 @@ import {
 import { createInspection } from "@/lib/store"
 import { Save } from "lucide-react"
 
-const TIPOS_VISTORIA = [
-  "Entrega de obra",
-  "Recebimento de imóvel",
-  "Vistoria cautelar",
-  "Vistoria periódica",
-  "Laudo técnico",
-  "Outro",
-]
-
 interface FormErrors {
   titulo?: string
-  tipo?: string
-  endereco?: string
-  responsavel?: string
   dataVistoria?: string
+  horarioInicio?: string
+  horarioFim?: string
+  local?: string
+  condominio?: string
+  torre?: string
 }
 
 export function NewInspectionForm() {
   const router = useRouter()
   const [titulo, setTitulo] = useState("")
-  const [tipo, setTipo] = useState("")
-  const [endereco, setEndereco] = useState("")
-  const [responsavel, setResponsavel] = useState("")
   const [dataVistoria, setDataVistoria] = useState("")
-  const [observacoes, setObservacoes] = useState("")
+  const [horarioInicio, setHorarioInicio] = useState("")
+  const [horarioFim, setHorarioFim] = useState("")
+  const [local, setLocal] = useState("")
+  const [condominio, setCondominio] = useState("")
+  const [torre, setTorre] = useState("")
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
 
   function validate(): boolean {
     const newErrors: FormErrors = {}
     if (!titulo.trim()) newErrors.titulo = "Título é obrigatório"
-    if (!tipo) newErrors.tipo = "Selecione o tipo"
-    if (!endereco.trim()) newErrors.endereco = "Endereço é obrigatório"
-    if (!responsavel.trim()) newErrors.responsavel = "Responsável é obrigatório"
     if (!dataVistoria) newErrors.dataVistoria = "Data é obrigatória"
+    if (!horarioInicio) newErrors.horarioInicio = "Horário de início é obrigatório"
+    if (!horarioFim) newErrors.horarioFim = "Horário de término é obrigatório"
+    if (!local.trim()) newErrors.local = "Local é obrigatório"
+    if (!condominio.trim()) newErrors.condominio = "Condomínio é obrigatório"
+    if (!torre.trim()) newErrors.torre = "Torre é obrigatória"
+    
+    // Validar horários
+    if (horarioInicio && horarioFim && horarioFim <= horarioInicio) {
+      newErrors.horarioFim = "Horário de término deve ser após o início"
+    }
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -70,11 +72,12 @@ export function NewInspectionForm() {
     try {
       const inspection = createInspection({
         titulo: titulo.trim(),
-        tipo,
-        endereco: endereco.trim(),
-        responsavel: responsavel.trim(),
+        local: local.trim(),
+        condominio: condominio.trim(),
+        torre: torre.trim(),
         dataVistoria,
-        observacoes: observacoes.trim(),
+        horarioInicio,
+        horarioFim,
       })
       toast.success("Vistoria criada com sucesso!")
       router.push(`/vistorias/${inspection.id}`)
@@ -88,129 +91,161 @@ export function NewInspectionForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-4 py-6">
       <Card>
         <CardContent className="flex flex-col gap-5 p-5">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="titulo" className="text-sm font-medium">
-              Titulo da Vistoria <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="titulo"
-              placeholder="Ex: Vistoria Apartamento 302"
-              value={titulo}
-              onChange={(e) => {
-                setTitulo(e.target.value)
-                if (errors.titulo) setErrors((p) => ({ ...p, titulo: undefined }))
-              }}
-              className={`h-12 text-base ${errors.titulo ? "border-destructive" : ""}`}
-              aria-invalid={!!errors.titulo}
-            />
-            {errors.titulo && (
-              <p className="text-xs text-destructive">{errors.titulo}</p>
-            )}
+          {/* IDENTIFICAÇÃO */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground">Identificação</h3>
+            
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="titulo" className="text-sm font-medium">
+                Título <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="titulo"
+                placeholder="Ex: Vistoria Apartamento 302"
+                value={titulo}
+                onChange={(e) => {
+                  setTitulo(e.target.value)
+                  if (errors.titulo) setErrors((p) => ({ ...p, titulo: undefined }))
+                }}
+                className={`h-12 text-base ${errors.titulo ? "border-destructive" : ""}`}
+                aria-invalid={!!errors.titulo}
+              />
+              {errors.titulo && (
+                <p className="text-xs text-destructive">{errors.titulo}</p>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="tipo" className="text-sm font-medium">
-              Tipo <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={tipo}
-              onValueChange={(v) => {
-                setTipo(v)
-                if (errors.tipo) setErrors((p) => ({ ...p, tipo: undefined }))
-              }}
-            >
-              <SelectTrigger
-                id="tipo"
-                className={`h-12 text-base ${errors.tipo ? "border-destructive" : ""}`}
-                aria-invalid={!!errors.tipo}
-              >
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {TIPOS_VISTORIA.map((t) => (
-                  <SelectItem key={t} value={t} className="text-base py-3">
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.tipo && (
-              <p className="text-xs text-destructive">{errors.tipo}</p>
-            )}
+          {/* ENDEREÇO */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground">Endereço</h3>
+            
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="condominio" className="text-sm font-medium">
+                Condomínio <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="condominio"
+                placeholder="Ex: Condomínio Praia Mar"
+                value={condominio}
+                onChange={(e) => {
+                  setCondominio(e.target.value)
+                  if (errors.condominio) setErrors((p) => ({ ...p, condominio: undefined }))
+                }}
+                className={`h-12 text-base ${errors.condominio ? "border-destructive" : ""}`}
+                aria-invalid={!!errors.condominio}
+              />
+              {errors.condominio && (
+                <p className="text-xs text-destructive">{errors.condominio}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="torre" className="text-sm font-medium">
+                Torre <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="torre"
+                placeholder="Ex: Torre A"
+                value={torre}
+                onChange={(e) => {
+                  setTorre(e.target.value)
+                  if (errors.torre) setErrors((p) => ({ ...p, torre: undefined }))
+                }}
+                className={`h-12 text-base ${errors.torre ? "border-destructive" : ""}`}
+                aria-invalid={!!errors.torre}
+              />
+              {errors.torre && (
+                <p className="text-xs text-destructive">{errors.torre}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="local" className="text-sm font-medium">
+                Local <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="local"
+                placeholder="Ex: Rua das Flores, 100"
+                value={local}
+                onChange={(e) => {
+                  setLocal(e.target.value)
+                  if (errors.local) setErrors((p) => ({ ...p, local: undefined }))
+                }}
+                className={`h-12 text-base ${errors.local ? "border-destructive" : ""}`}
+                aria-invalid={!!errors.local}
+              />
+              {errors.local && (
+                <p className="text-xs text-destructive">{errors.local}</p>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="endereco" className="text-sm font-medium">
-              Endereco <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="endereco"
-              placeholder="Endereco completo do local"
-              value={endereco}
-              onChange={(e) => {
-                setEndereco(e.target.value)
-                if (errors.endereco) setErrors((p) => ({ ...p, endereco: undefined }))
-              }}
-              className={`h-12 text-base ${errors.endereco ? "border-destructive" : ""}`}
-              aria-invalid={!!errors.endereco}
-            />
-            {errors.endereco && (
-              <p className="text-xs text-destructive">{errors.endereco}</p>
-            )}
-          </div>
+          {/* DATAS E HORÁRIOS */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground">Datas e Horários</h3>
+            
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="data" className="text-sm font-medium">
+                Data <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="data"
+                type="date"
+                value={dataVistoria}
+                onChange={(e) => {
+                  setDataVistoria(e.target.value)
+                  if (errors.dataVistoria) setErrors((p) => ({ ...p, dataVistoria: undefined }))
+                }}
+                className={`h-12 text-base ${errors.dataVistoria ? "border-destructive" : ""}`}
+                aria-invalid={!!errors.dataVistoria}
+              />
+              {errors.dataVistoria && (
+                <p className="text-xs text-destructive">{errors.dataVistoria}</p>
+              )}
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="responsavel" className="text-sm font-medium">
-              Responsavel <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="responsavel"
-              placeholder="Nome do responsável técnico"
-              value={responsavel}
-              onChange={(e) => {
-                setResponsavel(e.target.value)
-                if (errors.responsavel) setErrors((p) => ({ ...p, responsavel: undefined }))
-              }}
-              className={`h-12 text-base ${errors.responsavel ? "border-destructive" : ""}`}
-              aria-invalid={!!errors.responsavel}
-            />
-            {errors.responsavel && (
-              <p className="text-xs text-destructive">{errors.responsavel}</p>
-            )}
-          </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="horarioInicio" className="text-sm font-medium">
+                  Início <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="horarioInicio"
+                  type="time"
+                  value={horarioInicio}
+                  onChange={(e) => {
+                    setHorarioInicio(e.target.value)
+                    if (errors.horarioInicio) setErrors((p) => ({ ...p, horarioInicio: undefined }))
+                  }}
+                  className={`h-12 text-base ${errors.horarioInicio ? "border-destructive" : ""}`}
+                  aria-invalid={!!errors.horarioInicio}
+                />
+                {errors.horarioInicio && (
+                  <p className="text-xs text-destructive">{errors.horarioInicio}</p>
+                )}
+              </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="data" className="text-sm font-medium">
-              Data da Vistoria <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="data"
-              type="date"
-              value={dataVistoria}
-              onChange={(e) => {
-                setDataVistoria(e.target.value)
-                if (errors.dataVistoria) setErrors((p) => ({ ...p, dataVistoria: undefined }))
-              }}
-              className={`h-12 text-base ${errors.dataVistoria ? "border-destructive" : ""}`}
-              aria-invalid={!!errors.dataVistoria}
-            />
-            {errors.dataVistoria && (
-              <p className="text-xs text-destructive">{errors.dataVistoria}</p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="obs" className="text-sm font-medium">
-              Observacoes
-            </Label>
-            <Textarea
-              id="obs"
-              placeholder="Observacoes adicionais (opcional)"
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              rows={4}
-              className="text-base resize-none"
-            />
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="horarioFim" className="text-sm font-medium">
+                  Término <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="horarioFim"
+                  type="time"
+                  value={horarioFim}
+                  onChange={(e) => {
+                    setHorarioFim(e.target.value)
+                    if (errors.horarioFim) setErrors((p) => ({ ...p, horarioFim: undefined }))
+                  }}
+                  className={`h-12 text-base ${errors.horarioFim ? "border-destructive" : ""}`}
+                  aria-invalid={!!errors.horarioFim}
+                />
+                {errors.horarioFim && (
+                  <p className="text-xs text-destructive">{errors.horarioFim}</p>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

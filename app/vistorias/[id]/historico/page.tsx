@@ -1,6 +1,10 @@
 import { AppHeader } from "@/components/app-header"
 import { InspectionHistory } from "@/components/inspection-history"
 
+export async function generateStaticParams() {
+  return []
+}
+
 export default async function HistoricoPage({
   params,
 }: {
